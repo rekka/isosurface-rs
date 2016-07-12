@@ -5,6 +5,8 @@ pub struct CameraState {
     aspect_ratio: f32,
     position: (f32, f32, f32),
     direction: (f32, f32, f32),
+    azimuth: f32,
+    inclination: f32,
 
     moving_up: bool,
     moving_left: bool,
@@ -12,6 +14,9 @@ pub struct CameraState {
     moving_right: bool,
     moving_forward: bool,
     moving_backward: bool,
+    dragging: bool,
+    dragging_start: Option<(i32, i32)>,
+    mouse_position: Option<(i32, i32)>,
 }
 
 impl CameraState {
@@ -20,12 +25,17 @@ impl CameraState {
             aspect_ratio: 1024.0 / 768.0,
             position: (0.1, 0.1, 1.0),
             direction: (0.0, 0.0, -1.0),
+            azimuth: 0.,
+            inclination: 0.,
             moving_up: false,
             moving_left: false,
             moving_down: false,
             moving_right: false,
             moving_forward: false,
             moving_backward: false,
+            dragging: false,
+            dragging_start: None,
+            mouse_position: None,
         }
     }
 
@@ -188,6 +198,14 @@ impl CameraState {
             },
             &glutin::Event::KeyboardInput(glutin::ElementState::Released, _, Some(glutin::VirtualKeyCode::S)) => {
                 self.moving_backward = false;
+            },
+            &glutin::Event::MouseInput(glutin::ElementState::Pressed, glutin::MouseButton::Left) =>                 { self.dragging = true; self.dragging_start = self.mouse_position; },
+            &glutin::Event::MouseInput(glutin::ElementState::Released, glutin::MouseButton::Left) =>                 self.dragging = false,
+            &glutin::Event::MouseMoved(px, py) =>                 {
+                self.mouse_position = Some((px, py));
+                if self.dragging {
+                    // update direction
+                }
             },
             _ => {}
         }

@@ -1,9 +1,33 @@
 #[macro_use]
 extern crate glium;
+extern crate isosurface;
+extern crate ndarray;
+
+use ndarray::Array;
+use isosurface::marching_tetrahedra;
+use glium::glutin;
 
 mod support;
 
 fn main() {
+    let xs = Array::linspace(-0.5, 0.5, 3);
+    let ys = Array::linspace(-0.5, 0.5, 3);
+    let zs = Array::linspace(-0.5, 0.5, 3);
+
+    let dim = (xs.len(), ys.len(), zs.len());
+
+    let u = {
+        let mut u = Array::from_elem(dim, 0.);
+
+        for ((i, j, k), u) in u.indexed_iter_mut() {
+            let (x, y, z) = (xs[i], ys[j], zs[k]);
+            *u = x * x + y * y + z * z - 0.3;
+        }
+        u
+    };
+
+    let (verts, faces, normals) = marching_tetrahedra(u.as_slice().unwrap(), dim, 0.);
+
     use glium::{DisplayBuild, Surface};
     let display = glium::glutin::WindowBuilder::new()
                         .with_depth_buffer(24)
@@ -19,14 +43,12 @@ fn main() {
 
         implement_vertex!(Vertex, position, color);
 
+        let verts: Vec<_> = verts.iter().map(|v| Vertex { position: [v[0] as f32, v[1] as f32, v[2] as f32], color: [1.0, 0.0, 0.0] }).collect();
         glium::VertexBuffer::new(&display,
-            &[
-                Vertex { position: [-0.5, -0.5, 0.], color: [0.0, 1.0, 0.0] },
-                Vertex { position: [ 0.0,  0.5, 0.], color: [0.0, 0.0, 1.0] },
-                Vertex { position: [ 0.5, -0.5, 0.], color: [1.0, 0.0, 0.0] },
-            ]
+            &verts
         ).unwrap()
     };
+
     let normals = {
         #[derive(Copy, Clone)]
         pub struct Normal {
@@ -35,22 +57,24 @@ fn main() {
 
         implement_vertex!(Normal, normal);
 
-        glium::VertexBuffer::new(&display,
-        &[
-            Normal { normal: (0., 0., 1.) },
-            Normal { normal: (0., 0., 1.) },
-            Normal { normal: (0., 0., 1.) },
-        ]
-        ).unwrap()
+        let normals: Vec<_> = normals.iter().map(|v| Normal { normal: (0., 0., 1.) }).collect();
+
+        glium::VertexBuffer::new(&display, &normals).unwrap()
     };
 
 
     // building the index buffer
-    let indices = glium::IndexBuffer::new(&display, glium::index::PrimitiveType::TrianglesList,
-                                               &[0u16, 1, 2]).unwrap();
+    let indices = {
+        let mut buf = Vec::with_capacity(faces.len() * 3);
+        for i in faces {
+            buf.extend_from_slice(&i);
+        }
+        glium::IndexBuffer::new(&display, glium::index::PrimitiveType::TrianglesList,
+                                               &buf).unwrap()
+    };
 
     let vertex_shader_src = r#"
-        #version 140
+        #version 150
 
         in vec3 position;
         in vec3 normal;
@@ -71,7 +95,7 @@ fn main() {
     "#;
 
     let fragment_shader_src = r#"
-        #version 140
+        #version 150
 
         in vec3 v_normal;
         in vec3 v_position;
@@ -99,16 +123,18 @@ fn main() {
                                               None).unwrap();
 
     let mut camera = support::camera::CameraState::new();
+    let mut wireframe = false;
     loop {
         camera.update();
 
         let mut target = display.draw();
         target.clear_color_and_depth((0.0, 0.0, 0.0, 1.0), 1.0);
 
+        let scale = 0.1;
         let model = [
-            [1.0, 0.0, 0.0, 0.0],
-            [0.0, 1.0, 0.0, 0.0],
-            [0.0, 0.0, 1.0, 0.0],
+            [scale, 0.0, 0.0, 0.0],
+            [0.0, scale, 0.0, 0.0],
+            [0.0, 0.0, scale, 0.0],
             [0.0, 0.0, 0.0, 1.0f32]
         ];
 
@@ -120,7 +146,7 @@ fn main() {
                 write: true,
                 .. Default::default()
             },
-            polygon_mode: glium::draw_parameters::PolygonMode::Line,
+            polygon_mode: if wireframe { glium::draw_parameters::PolygonMode::Line } else { glium::draw_parameters::PolygonMode::Fill },
             line_width: Some(3.),
             //backface_culling: glium::draw_parameters::BackfaceCullingMode::CullClockWise,
             .. Default::default()
@@ -134,6 +160,7 @@ fn main() {
         for ev in display.poll_events() {
             match ev {
                 glium::glutin::Event::Closed => return,
+                glutin::Event::KeyboardInput(glutin::ElementState::Pressed, _, Some(glutin::VirtualKeyCode::F)) => wireframe = !wireframe,
                 ev => camera.process_input(&ev)
             }
         }
