@@ -49,7 +49,7 @@ fn tetrahedron(u: [f64; 4],
                     verts.push(interpolate(u3, u0, v3, v0));
                     verts.push(interpolate(u3, u1, v3, v1));
                     faces.push([i, i + 1, i + 2]);
-                    faces.push([i + 2, i + 3, i]);
+                    faces.push([i + 2, i + 1, i + 3]);
                 }
             }
         } else {
@@ -68,7 +68,7 @@ fn tetrahedron(u: [f64; 4],
                     verts.push(interpolate(u3, u0, v3, v0));
                     verts.push(interpolate(u3, u2, v3, v2));
                     faces.push([i, i + 1, i + 2]);
-                    faces.push([i + 2, i + 3, i]);
+                    faces.push([i + 2, i + 1, i + 3]);
                 }
             } else {
                 if u3 >= 0. {
@@ -78,7 +78,7 @@ fn tetrahedron(u: [f64; 4],
                     verts.push(interpolate(u2, u0, v2, v0));
                     verts.push(interpolate(u2, u3, v2, v3));
                     faces.push([i, i + 1, i + 2]);
-                    faces.push([i + 2, i + 3, i]);
+                    faces.push([i + 2, i + 1, i + 3]);
                 } else {
                     let i = verts.len() as u32;
                     verts.push(interpolate(u1, u0, v1, v0));
@@ -106,7 +106,7 @@ fn tetrahedron(u: [f64; 4],
                     verts.push(interpolate(u3, u1, v3, v1));
                     verts.push(interpolate(u3, u2, v3, v2));
                     faces.push([i, i + 1, i + 2]);
-                    faces.push([i + 2, i + 3, i]);
+                    faces.push([i + 2, i + 1, i + 3]);
                 }
             } else {
                 if u3 >= 0. {
@@ -116,7 +116,7 @@ fn tetrahedron(u: [f64; 4],
                     verts.push(interpolate(u2, u1, v2, v1));
                     verts.push(interpolate(u2, u3, v2, v3));
                     faces.push([i, i + 1, i + 2]);
-                    faces.push([i + 2, i + 3, i]);
+                    faces.push([i + 2, i + 1, i + 3]);
                 } else {
                     let i = verts.len() as u32;
                     verts.push(interpolate(u0, u1, v0, v1));
@@ -135,7 +135,7 @@ fn tetrahedron(u: [f64; 4],
                     verts.push(interpolate(u1, u2, v1, v2));
                     verts.push(interpolate(u1, u3, v1, v3));
                     faces.push([i, i + 1, i + 2]);
-                    faces.push([i + 2, i + 3, i]);
+                    faces.push([i + 2, i + 1, i + 3]);
                 } else {
                     let i = verts.len() as u32;
                     verts.push(interpolate(u0, u2, v0, v2));
@@ -156,6 +156,7 @@ fn tetrahedron(u: [f64; 4],
         }
     }
     // END GENERATED
+
 }
 
 /// Finds the isosurface of `u` at `level` using the marching tetrahedra algorithm.

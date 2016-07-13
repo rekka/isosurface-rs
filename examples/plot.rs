@@ -193,9 +193,10 @@ fn main() {
     let u = {
         let mut u = Array::from_elem(dim, 0.);
 
+        let r = 0.6;
         for ((i, j, k), u) in u.indexed_iter_mut() {
             let (x, y, z) = (xs[i], ys[j], zs[k]);
-            *u = x * x + y * y + z * z - 0.2 * 0.2;
+            *u = x * x + y * y + z * z - r * r;
         }
         u
     };
