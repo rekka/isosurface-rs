@@ -212,7 +212,7 @@ pub fn marching_tetrahedra(u: &[f64],
 
                 for (t, p) in idx.iter().zip(inv_perms.iter()) {
                     for m in 0..4 {
-                        us[m] = u[s - t[m].0 * nj * nk - t[m].1 * nk - t[m].2];
+                        us[m] = u[s - t[m].0 * nj * nk - t[m].1 * nk - t[m].2] - level;
                         vs[m] = [(i - t[m].0) as f64, (j - t[m].1) as f64, (k - t[m].2) as f64];
                     }
 

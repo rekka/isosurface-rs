@@ -205,7 +205,8 @@ fn main() {
         u
     };
 
-    let (verts, faces, normals) = marching_tetrahedra(u.as_slice().unwrap(), dim, 0.);
+    let level = 0.1;
+    let (verts, faces, normals) = marching_tetrahedra(u.as_slice().unwrap(), dim, level);
 
 
     use glium::{DisplayBuild, Surface};
