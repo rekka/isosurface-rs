@@ -1,12 +1,18 @@
+extern crate cgmath;
 // stolen from glium/examples/support
 use glium::glutin;
 
+use self::cgmath::{Point3, Vector3, Matrix4, InnerSpace};
+
+use std::f32::consts::{PI, FRAC_PI_2};
+
 pub struct CameraState {
     aspect_ratio: f32,
-    position: (f32, f32, f32),
-    direction: (f32, f32, f32),
+    position: Point3<f32>,
+    // direction: (f32, f32, f32),
     azimuth: f32,
     inclination: f32,
+    radius: f32,
 
     moving_up: bool,
     moving_left: bool,
@@ -15,7 +21,6 @@ pub struct CameraState {
     moving_forward: bool,
     moving_backward: bool,
     dragging: bool,
-    dragging_start: Option<(i32, i32)>,
     mouse_position: Option<(i32, i32)>,
 }
 
@@ -23,8 +28,9 @@ impl CameraState {
     pub fn new() -> CameraState {
         CameraState {
             aspect_ratio: 1024.0 / 768.0,
-            position: (0.1, 0.1, 1.0),
-            direction: (0.0, 0.0, -1.0),
+            position: Point3::new(0.0, 0.0, 0.0),
+            radius: 3.,
+            // direction: (0.0, 0.0, -1.0),
             azimuth: 0.,
             inclination: 0.,
             moving_up: false,
@@ -34,179 +40,152 @@ impl CameraState {
             moving_forward: false,
             moving_backward: false,
             dragging: false,
-            dragging_start: None,
             mouse_position: None,
         }
     }
 
-    pub fn set_position(&mut self, pos: (f32, f32, f32)) {
-        self.position = pos;
-    }
+    // pub fn set_position(&mut self, pos: (f32, f32, f32)) {
+    //     self.position = pos;
+    // }
+    //
+    // pub fn set_direction(&mut self, dir: (f32, f32, f32)) {
+    //     self.direction = dir;
+    // }
 
-    pub fn set_direction(&mut self, dir: (f32, f32, f32)) {
-        self.direction = dir;
+    pub fn direction(&self) -> Vector3<f32> {
+        let t = self.inclination;
+        let f = self.azimuth;
+        Vector3::new(f.cos() * t.cos(), t.sin(), f.sin() * t.cos())
     }
 
     pub fn get_perspective(&self) -> [[f32; 4]; 4] {
-        let fov: f32 = 3.141592 / 2.0;
+        let fov: f32 = PI / 3.0;
         let zfar = 1024.0;
         let znear = 0.1;
 
-        let f = 1.0 / (fov / 2.0).tan();
-
-        // note: remember that this is column-major, so the lines of code are actually columns
-        [
-            [f / self.aspect_ratio,    0.0,              0.0              ,   0.0],
-            [         0.0         ,     f ,              0.0              ,   0.0],
-            [         0.0         ,    0.0,  (zfar+znear)/(zfar-znear)    ,   1.0],
-            [         0.0         ,    0.0, -(2.0*zfar*znear)/(zfar-znear),   0.0],
-        ]
+        cgmath::perspective(cgmath::Rad::new(fov), self.aspect_ratio, znear, zfar).into()
     }
 
     pub fn get_view(&self) -> [[f32; 4]; 4] {
-        let f = {
-            let f = self.direction;
-            let len = f.0 * f.0 + f.1 * f.1 + f.2 * f.2;
-            let len = len.sqrt();
-            (f.0 / len, f.1 / len, f.2 / len)
-        };
-
-        let up = (0.0, 1.0, 0.0);
-
-        let s = (f.1 * up.2 - f.2 * up.1,
-                 f.2 * up.0 - f.0 * up.2,
-                 f.0 * up.1 - f.1 * up.0);
-
-        let s_norm = {
-            let len = s.0 * s.0 + s.1 * s.1 + s.2 * s.2;
-            let len = len.sqrt();
-            (s.0 / len, s.1 / len, s.2 / len)
-        };
-
-        let u = (s_norm.1 * f.2 - s_norm.2 * f.1,
-                 s_norm.2 * f.0 - s_norm.0 * f.2,
-                 s_norm.0 * f.1 - s_norm.1 * f.0);
-
-        let p = (-self.position.0 * s.0 - self.position.1 * s.1 - self.position.2 * s.2,
-                 -self.position.0 * u.0 - self.position.1 * u.1 - self.position.2 * u.2,
-                 -self.position.0 * f.0 - self.position.1 * f.1 - self.position.2 * f.2);
-
-        // note: remember that this is column-major, so the lines of code are actually columns
-        [
-            [s_norm.0, u.0, f.0, 0.0],
-            [s_norm.1, u.1, f.1, 0.0],
-            [s_norm.2, u.2, f.2, 0.0],
-            [p.0, p.1,  p.2, 1.0],
-        ]
+        Matrix4::look_at(self.position + (-self.radius * self.direction()),
+                         self.position,
+                         Vector3::new(0.0, 1.0, 0.0))
+            .into()
     }
 
     pub fn update(&mut self) {
-        let f = {
-            let f = self.direction;
-            let len = f.0 * f.0 + f.1 * f.1 + f.2 * f.2;
-            let len = len.sqrt();
-            (f.0 / len, f.1 / len, f.2 / len)
-        };
+        let f = self.direction();
+        let up = Vector3::new(0.0, 1.0, 0.0);
 
-        let up = (0.0, 1.0, 0.0);
-
-        let s = (f.1 * up.2 - f.2 * up.1,
-                 f.2 * up.0 - f.0 * up.2,
-                 f.0 * up.1 - f.1 * up.0);
-
-        let s = {
-            let len = s.0 * s.0 + s.1 * s.1 + s.2 * s.2;
-            let len = len.sqrt();
-            (s.0 / len, s.1 / len, s.2 / len)
-        };
-
-        let u = (s.1 * f.2 - s.2 * f.1,
-                 s.2 * f.0 - s.0 * f.2,
-                 s.0 * f.1 - s.1 * f.0);
+        let s = f.cross(up).normalize();
+        let u = s.cross(f);
 
         if self.moving_up {
-            self.position.0 += u.0 * 0.01;
-            self.position.1 += u.1 * 0.01;
-            self.position.2 += u.2 * 0.01;
+            self.position += u * 0.01;
         }
 
         if self.moving_left {
-            self.position.0 -= s.0 * 0.01;
-            self.position.1 -= s.1 * 0.01;
-            self.position.2 -= s.2 * 0.01;
+            self.position += -s * 0.01;
         }
 
         if self.moving_down {
-            self.position.0 -= u.0 * 0.01;
-            self.position.1 -= u.1 * 0.01;
-            self.position.2 -= u.2 * 0.01;
+            self.position += -u * 0.01;
         }
 
         if self.moving_right {
-            self.position.0 += s.0 * 0.01;
-            self.position.1 += s.1 * 0.01;
-            self.position.2 += s.2 * 0.01;
+            self.position += s * 0.01;
         }
 
         if self.moving_forward {
-            self.position.0 += f.0 * 0.01;
-            self.position.1 += f.1 * 0.01;
-            self.position.2 += f.2 * 0.01;
+            self.position += f * 0.01;
         }
 
         if self.moving_backward {
-            self.position.0 -= f.0 * 0.01;
-            self.position.1 -= f.1 * 0.01;
-            self.position.2 -= f.2 * 0.01;
+            self.position += -f * 0.01;
         }
     }
 
     pub fn process_input(&mut self, event: &glutin::Event) {
         match event {
-            &glutin::Event::KeyboardInput(glutin::ElementState::Pressed, _, Some(glutin::VirtualKeyCode::Space)) => {
+            &glutin::Event::KeyboardInput(glutin::ElementState::Pressed,
+                                          _,
+                                          Some(glutin::VirtualKeyCode::Space)) => {
                 self.moving_up = true;
-            },
-            &glutin::Event::KeyboardInput(glutin::ElementState::Released, _, Some(glutin::VirtualKeyCode::Space)) => {
+            }
+            &glutin::Event::KeyboardInput(glutin::ElementState::Released,
+                                          _,
+                                          Some(glutin::VirtualKeyCode::Space)) => {
                 self.moving_up = false;
-            },
-            &glutin::Event::KeyboardInput(glutin::ElementState::Pressed, _, Some(glutin::VirtualKeyCode::Down)) => {
+            }
+            &glutin::Event::KeyboardInput(glutin::ElementState::Pressed,
+                                          _,
+                                          Some(glutin::VirtualKeyCode::Down)) => {
                 self.moving_down = true;
-            },
-            &glutin::Event::KeyboardInput(glutin::ElementState::Released, _, Some(glutin::VirtualKeyCode::Down)) => {
+            }
+            &glutin::Event::KeyboardInput(glutin::ElementState::Released,
+                                          _,
+                                          Some(glutin::VirtualKeyCode::Down)) => {
                 self.moving_down = false;
-            },
-            &glutin::Event::KeyboardInput(glutin::ElementState::Pressed, _, Some(glutin::VirtualKeyCode::A)) => {
+            }
+            &glutin::Event::KeyboardInput(glutin::ElementState::Pressed,
+                                          _,
+                                          Some(glutin::VirtualKeyCode::A)) => {
                 self.moving_left = true;
-            },
-            &glutin::Event::KeyboardInput(glutin::ElementState::Released, _, Some(glutin::VirtualKeyCode::A)) => {
+            }
+            &glutin::Event::KeyboardInput(glutin::ElementState::Released,
+                                          _,
+                                          Some(glutin::VirtualKeyCode::A)) => {
                 self.moving_left = false;
-            },
-            &glutin::Event::KeyboardInput(glutin::ElementState::Pressed, _, Some(glutin::VirtualKeyCode::D)) => {
+            }
+            &glutin::Event::KeyboardInput(glutin::ElementState::Pressed,
+                                          _,
+                                          Some(glutin::VirtualKeyCode::D)) => {
                 self.moving_right = true;
-            },
-            &glutin::Event::KeyboardInput(glutin::ElementState::Released, _, Some(glutin::VirtualKeyCode::D)) => {
+            }
+            &glutin::Event::KeyboardInput(glutin::ElementState::Released,
+                                          _,
+                                          Some(glutin::VirtualKeyCode::D)) => {
                 self.moving_right = false;
-            },
-            &glutin::Event::KeyboardInput(glutin::ElementState::Pressed, _, Some(glutin::VirtualKeyCode::W)) => {
+            }
+            &glutin::Event::KeyboardInput(glutin::ElementState::Pressed,
+                                          _,
+                                          Some(glutin::VirtualKeyCode::W)) => {
                 self.moving_forward = true;
-            },
-            &glutin::Event::KeyboardInput(glutin::ElementState::Released, _, Some(glutin::VirtualKeyCode::W)) => {
+            }
+            &glutin::Event::KeyboardInput(glutin::ElementState::Released,
+                                          _,
+                                          Some(glutin::VirtualKeyCode::W)) => {
                 self.moving_forward = false;
-            },
-            &glutin::Event::KeyboardInput(glutin::ElementState::Pressed, _, Some(glutin::VirtualKeyCode::S)) => {
+            }
+            &glutin::Event::KeyboardInput(glutin::ElementState::Pressed,
+                                          _,
+                                          Some(glutin::VirtualKeyCode::S)) => {
                 self.moving_backward = true;
-            },
-            &glutin::Event::KeyboardInput(glutin::ElementState::Released, _, Some(glutin::VirtualKeyCode::S)) => {
+            }
+            &glutin::Event::KeyboardInput(glutin::ElementState::Released,
+                                          _,
+                                          Some(glutin::VirtualKeyCode::S)) => {
                 self.moving_backward = false;
-            },
-            &glutin::Event::MouseInput(glutin::ElementState::Pressed, glutin::MouseButton::Left) =>                 { self.dragging = true; self.dragging_start = self.mouse_position; },
-            &glutin::Event::MouseInput(glutin::ElementState::Released, glutin::MouseButton::Left) =>                 self.dragging = false,
-            &glutin::Event::MouseMoved(px, py) =>                 {
-                self.mouse_position = Some((px, py));
+            }
+            &glutin::Event::MouseInput(glutin::ElementState::Pressed,
+                                       glutin::MouseButton::Left) => {
+                self.dragging = true;
+            }
+            &glutin::Event::MouseInput(glutin::ElementState::Released,
+                                       glutin::MouseButton::Left) => self.dragging = false,
+            &glutin::Event::MouseMoved(x, y) => {
+                let prev = self.mouse_position;
+                self.mouse_position = Some((x, y));
                 if self.dragging {
-                    // update direction
+                    if let Some((px, py)) = prev {
+                        // update direction
+                        self.azimuth -= (px - x) as f32 * 0.01;
+                        self.inclination += (py - y) as f32 * 0.01;
+                        self.inclination =
+                            self.inclination.max(-FRAC_PI_2 + 0.01).min(FRAC_PI_2 - 0.01);
+                    }
                 }
-            },
+            }
             _ => {}
         }
     }

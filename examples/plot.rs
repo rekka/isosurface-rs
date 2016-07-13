@@ -9,71 +9,92 @@ use glium::glutin;
 
 mod support;
 
-fn main() {
-    let xs = Array::linspace(-0.5, 0.5, 3);
-    let ys = Array::linspace(-0.5, 0.5, 3);
-    let zs = Array::linspace(-0.5, 0.5, 3);
+mod surface {
+    use glium;
+    use glium::backend::Facade;
+    use support;
+    use std;
 
-    let dim = (xs.len(), ys.len(), zs.len());
+    #[derive(Copy, Clone)]
+    struct Vertex {
+        position: [f32; 3],
+        color: [f32; 3],
+        normal: [f32; 3],
+    }
 
-    let u = {
-        let mut u = Array::from_elem(dim, 0.);
+    implement_vertex!(Vertex, position, color, normal);
 
-        for ((i, j, k), u) in u.indexed_iter_mut() {
-            let (x, y, z) = (xs[i], ys[j], zs[k]);
-            *u = x * x + y * y + z * z - 0.3;
-        }
-        u
-    };
+    pub struct Surface {
+        verts: glium::VertexBuffer<Vertex>,
+        indices: glium::IndexBuffer<u32>,
+        program: glium::Program,
+        model: [[f32;4];4],
+    }
 
-    let (verts, faces, normals) = marching_tetrahedra(u.as_slice().unwrap(), dim, 0.);
+    impl Surface {
+        pub fn new<F: Facade>(facade: &F,
+                              verts: &[[f64; 3]],
+                              faces: &[[u32; 3]],
+                              normals: &[[f64; 3]])
+                              -> Surface {
 
-    use glium::{DisplayBuild, Surface};
-    let display = glium::glutin::WindowBuilder::new()
-                        .with_depth_buffer(24)
-                        .build_glium().unwrap();
+            // compute the bounding box
+            let mut xmin = std::f64::MAX;
+            let mut ymin = std::f64::MAX;
+            let mut zmin = std::f64::MAX;
+            let mut xmax = std::f64::MIN;
+            let mut ymax = std::f64::MIN;
+            let mut zmax = std::f64::MIN;
 
-    // building the vertex buffer, which contains all the vertices that we will draw
-    let positions = {
-        #[derive(Copy, Clone)]
-        struct Vertex {
-            position: [f32; 3],
-            color: [f32; 3],
-        }
+            for v in verts {
+                xmin = xmin.min(v[0]);
+                ymin = ymin.min(v[1]);
+                zmin = zmin.min(v[2]);
+                xmax = xmax.max(v[0]);
+                ymax = ymax.max(v[1]);
+                zmax = zmax.max(v[2]);
+            }
 
-        implement_vertex!(Vertex, position, color);
-
-        let verts: Vec<_> = verts.iter().map(|v| Vertex { position: [v[0] as f32, v[1] as f32, v[2] as f32], color: [1.0, 0.0, 0.0] }).collect();
-        glium::VertexBuffer::new(&display,
-            &verts
-        ).unwrap()
-    };
-
-    let normals = {
-        #[derive(Copy, Clone)]
-        pub struct Normal {
-            normal: (f32, f32, f32)
-        }
-
-        implement_vertex!(Normal, normal);
-
-        let normals: Vec<_> = normals.iter().map(|v| Normal { normal: (0., 0., 1.) }).collect();
-
-        glium::VertexBuffer::new(&display, &normals).unwrap()
-    };
+            let cx = ((xmax + xmin) / 2.) as f32;
+            let cy = ((ymax + ymin) / 2.) as f32;
+            let cz = ((zmax + zmin) / 2.) as f32;
+            let sx = ((xmax - xmin) / 2.) as f32;
+            let sy = ((ymax - ymin) / 2.) as f32;
+            let sz = ((zmax - zmin) / 2.) as f32;
 
 
-    // building the index buffer
-    let indices = {
-        let mut buf = Vec::with_capacity(faces.len() * 3);
-        for i in faces {
-            buf.extend_from_slice(&i);
-        }
-        glium::IndexBuffer::new(&display, glium::index::PrimitiveType::TrianglesList,
-                                               &buf).unwrap()
-    };
+            // center the object and scale to max size 1 in any direction
+            let scale = 1. / sx.max(sy).max(sz);
+            let model = [[scale, 0.0, 0.0, 0.0],
+                         [0.0, scale, 0.0, 0.0],
+                         [0.0, 0.0, scale, 0.0],
+                         [-scale * cx, -scale * cy, -scale * cz, 1.0f32]];
 
-    let vertex_shader_src = r#"
+
+            let verts = {
+
+                let verts: Vec<_> = verts.iter()
+                    .map(|v| {
+                        Vertex {
+                            position: [v[0] as f32, v[1] as f32, v[2] as f32],
+                            color: [1.0, 0.0, 0.0],
+                            normal: [0., 0., 1.],
+                        }
+                    })
+                    .collect();
+                glium::VertexBuffer::new(facade, &verts).unwrap()
+            };
+
+            let indices = {
+                let mut buf = Vec::with_capacity(faces.len() * 3);
+                for i in faces {
+                    buf.extend_from_slice(i);
+                }
+                glium::IndexBuffer::new(facade, glium::index::PrimitiveType::TrianglesList, &buf)
+                    .unwrap()
+            };
+
+            let vertex_shader_src = r#"
         #version 150
 
         in vec3 position;
@@ -94,7 +115,7 @@ fn main() {
         }
     "#;
 
-    let fragment_shader_src = r#"
+            let fragment_shader_src = r#"
         #version 150
 
         in vec3 v_normal;
@@ -119,51 +140,99 @@ fn main() {
         }
     "#;
 
-    let program = glium::Program::from_source(&display, vertex_shader_src, fragment_shader_src,
-                                              None).unwrap();
+            let program =
+                glium::Program::from_source(facade, vertex_shader_src, fragment_shader_src, None)
+                    .unwrap();
+
+            Surface {
+                verts: verts,
+                indices: indices,
+                program: program,
+                model: model,
+            }
+        }
+
+        pub fn draw<S: glium::Surface>(&self,
+                                       target: &mut S,
+                                       camera: &support::camera::CameraState,
+                                       wireframe: bool)
+                                       -> Result<(), glium::DrawError> {
+            let light = [1.4, 0.4, -0.7f32];
+
+            let params = glium::DrawParameters {
+                depth: glium::Depth {
+                    test: glium::draw_parameters::DepthTest::IfLess,
+                    write: true,
+                    ..Default::default()
+                },
+                polygon_mode: if wireframe {
+                    glium::draw_parameters::PolygonMode::Line
+                } else {
+                    glium::draw_parameters::PolygonMode::Fill
+                },
+                line_width: Some(3.),
+                // backface_culling: glium::draw_parameters::BackfaceCullingMode::CullClockWise,
+                ..Default::default()
+            };
+
+            target.draw(&self.verts, &self.indices, &self.program,
+                    &uniform! { model: self.model, view: camera.get_view(), perspective: camera.get_perspective(), u_light: light },
+                    &params)
+        }
+    }
+
+}
+
+fn main() {
+    let xs = Array::linspace(-0.5, 0.5, 3);
+    let ys = Array::linspace(-0.5, 0.5, 3);
+    let zs = Array::linspace(-0.5, 0.5, 3);
+
+    let dim = (xs.len(), ys.len(), zs.len());
+
+    let u = {
+        let mut u = Array::from_elem(dim, 0.);
+
+        for ((i, j, k), u) in u.indexed_iter_mut() {
+            let (x, y, z) = (xs[i], ys[j], zs[k]);
+            *u = x * x + y * y + z * z - 0.2 * 0.2;
+        }
+        u
+    };
+
+    let (verts, faces, normals) = marching_tetrahedra(u.as_slice().unwrap(), dim, 0.);
+
+
+    use glium::{DisplayBuild, Surface};
+    let display = glium::glutin::WindowBuilder::new()
+        .with_depth_buffer(24)
+        .build_glium()
+        .unwrap();
+
+    let surface = surface::Surface::new(&display, &verts, &faces, &normals);
 
     let mut camera = support::camera::CameraState::new();
     let mut wireframe = false;
+
     loop {
         camera.update();
 
         let mut target = display.draw();
         target.clear_color_and_depth((0.0, 0.0, 0.0, 1.0), 1.0);
 
-        let scale = 0.1;
-        let model = [
-            [scale, 0.0, 0.0, 0.0],
-            [0.0, scale, 0.0, 0.0],
-            [0.0, 0.0, scale, 0.0],
-            [0.0, 0.0, 0.0, 1.0f32]
-        ];
-
-        let light = [1.4, 0.4, -0.7f32];
-
-        let params = glium::DrawParameters {
-            depth: glium::Depth {
-                test: glium::draw_parameters::DepthTest::IfLess,
-                write: true,
-                .. Default::default()
-            },
-            polygon_mode: if wireframe { glium::draw_parameters::PolygonMode::Line } else { glium::draw_parameters::PolygonMode::Fill },
-            line_width: Some(3.),
-            //backface_culling: glium::draw_parameters::BackfaceCullingMode::CullClockWise,
-            .. Default::default()
-        };
-
-        target.draw((&positions, &normals), &indices, &program,
-                    &uniform! { model: model, view: camera.get_view(), perspective: camera.get_perspective(), u_light: light },
-                    &params).unwrap();
+        surface.draw(&mut target, &camera, wireframe).unwrap();
         target.finish().unwrap();
 
         for ev in display.poll_events() {
             match ev {
                 glium::glutin::Event::Closed => return,
-                glutin::Event::KeyboardInput(glutin::ElementState::Pressed, _, Some(glutin::VirtualKeyCode::F)) => wireframe = !wireframe,
-                ev => camera.process_input(&ev)
+                glutin::Event::KeyboardInput(glutin::ElementState::Pressed,
+                                             _,
+                                             Some(glutin::VirtualKeyCode::F)) => {
+                    wireframe = !wireframe
+                }
+                ev => camera.process_input(&ev),
             }
         }
     }
 }
-
