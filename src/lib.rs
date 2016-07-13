@@ -171,6 +171,7 @@ pub fn marching_tetrahedra(u: &[f64],
     assert_eq!(ni * nj * nk, u.len());
 
     let mut verts: Vec<[f64; 3]> = Vec::new();
+    let mut normals: Vec<[f64; 3]> = Vec::new();
     let mut faces: Vec<[u32; 3]> = Vec::new();
 
     let idx = [[(0, 0, 0), (1, 0, 0), (1, 1, 0), (1, 1, 1)],
@@ -180,6 +181,27 @@ pub fn marching_tetrahedra(u: &[f64],
                [(0, 0, 0), (0, 0, 1), (1, 0, 1), (1, 1, 1)],
                [(0, 0, 0), (0, 0, 1), (0, 1, 1), (1, 1, 1)]];
 
+    let perms = [
+        [0, 1, 2],
+        [0, 2, 1],
+        [1, 0, 2],
+        [1, 2, 0],
+        [2, 0, 1],
+        [2, 1, 0],
+    ];
+
+    let inv_perms = {
+        let mut inv_perms = [[0;3];6];
+
+        for i in 0..6 {
+            for j in 0..3 {
+                inv_perms[i][perms[i][j]] = j;
+            }
+        }
+
+        inv_perms
+    };
+
     for i in 1..ni {
         for j in 1..nj {
             for k in 1..nk {
@@ -188,19 +210,26 @@ pub fn marching_tetrahedra(u: &[f64],
                 let mut us = [0.; 4];
                 let mut vs = [[0.; 3]; 4];
 
-                for t in idx.iter() {
+                for (t, p) in idx.iter().zip(inv_perms.iter()) {
                     for m in 0..4 {
                         us[m] = u[s - t[m].0 * nj * nk - t[m].1 * nk - t[m].2];
                         vs[m] = [(i - t[m].0) as f64, (j - t[m].1) as f64, (k - t[m].2) as f64];
                     }
 
                     tetrahedron(us, vs, &mut verts, &mut faces);
+                    // normals
+                    let n = [us[1] - us[0], us[2] - us[1], us[3] - us[2]];
+                    let n = [n[p[0]], n[p[1]], n[p[2]]];
+
+                    for _ in 0..verts.len() - normals.len() {
+                        normals.push(n);
+                    }
                 }
             }
         }
     }
 
-    (verts, faces, Vec::new())
+    (verts, faces, normals)
 }
 
 #[cfg(test)]

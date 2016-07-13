@@ -73,12 +73,12 @@ mod surface {
 
             let verts = {
 
-                let verts: Vec<_> = verts.iter()
-                    .map(|v| {
+                let verts: Vec<_> = verts.iter().zip(normals.iter())
+                    .map(|(v, n)| {
                         Vertex {
                             position: [v[0] as f32, v[1] as f32, v[2] as f32],
                             color: [1.0, 0.0, 0.0],
-                            normal: [0., 0., 1.],
+                            normal: [n[0] as f32, n[1] as f32, n[2] as f32],
                         }
                     })
                     .collect();
@@ -176,7 +176,10 @@ mod surface {
             };
 
             target.draw(&self.verts, &self.indices, &self.program,
-                    &uniform! { model: self.model, view: camera.get_view(), perspective: camera.get_perspective(), u_light: light },
+                    &uniform! { model: self.model,
+                                view: camera.get_view(),
+                                perspective: camera.get_perspective(),
+                                u_light: light },
                     &params)
         }
     }
@@ -184,16 +187,17 @@ mod surface {
 }
 
 fn main() {
-    let xs = Array::linspace(-0.5, 0.5, 3);
-    let ys = Array::linspace(-0.5, 0.5, 3);
-    let zs = Array::linspace(-0.5, 0.5, 3);
+    let res = 100;
+    let xs = Array::linspace(-0.5, 0.5, res);
+    let ys = Array::linspace(-0.5, 0.5, res);
+    let zs = Array::linspace(-0.5, 0.5, res);
 
     let dim = (xs.len(), ys.len(), zs.len());
 
     let u = {
         let mut u = Array::from_elem(dim, 0.);
 
-        let r = 0.6;
+        let r = 0.4;
         for ((i, j, k), u) in u.indexed_iter_mut() {
             let (x, y, z) = (xs[i], ys[j], zs[k]);
             *u = x * x + y * y + z * z - r * r;
