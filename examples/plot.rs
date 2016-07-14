@@ -321,6 +321,7 @@ fn main() {
         target.clear_color_and_depth((0.0, 0.0, 0.0, 1.0), 1.0);
 
         surface.draw(&mut target, &camera, wireframe, show_normals).unwrap();
+
         target.finish().unwrap();
 
         for ev in display.poll_events() {
