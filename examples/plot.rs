@@ -189,7 +189,7 @@ mod surface {
       for(i=0; i < gl_in.length(); i++)
       {
         vec3 p = gl_in[i].gl_Position.xyz;
-        vec3 n = vertex[i].normal;
+        vec3 n = normalize(vertex[i].normal);
 
         gl_Position =  matrix * vec4(p, 1.0);
         EmitVertex();
