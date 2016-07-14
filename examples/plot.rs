@@ -134,7 +134,7 @@ mod surface {
         void main() {
             float diffuse = max(dot(normalize(v_normal), normalize(u_light)), 0.0);
 
-            vec3 camera_dir = normalize(-v_position);
+            vec3 camera_dir = normalize(v_position);
             vec3 half_direction = normalize(normalize(u_light) + camera_dir);
             float specular = pow(max(dot(half_direction, normalize(v_normal)), 0.0), 16.0);
 
@@ -234,7 +234,8 @@ mod surface {
                                        wireframe: bool,
                                        normals: bool)
                                        -> Result<(), glium::DrawError> {
-            let light = [1.4, 0.4, -0.7f32];
+            let light = [1., 1., 1.0f32];
+            // let light = [1.4, 0.4, -0.7f32];
 
             let params = glium::DrawParameters {
                 depth: glium::Depth {
@@ -280,7 +281,7 @@ mod surface {
 }
 
 fn main() {
-    let res = 3;
+    let res = 10;
     let xs = Array::linspace(-0.5, 0.5, res);
     let ys = Array::linspace(-0.5, 0.5, res);
     let zs = Array::linspace(-0.5, 0.5, res);
@@ -300,10 +301,6 @@ fn main() {
 
     let level = 0.0;
     let (verts, faces, normals) = marching_tetrahedra(u.as_slice().unwrap(), dim, level);
-
-    println!("{:?}", verts);
-    println!("{:?}", normals);
-
 
     use glium::{DisplayBuild, Surface};
     let display = glium::glutin::WindowBuilder::new()
