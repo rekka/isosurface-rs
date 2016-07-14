@@ -7,6 +7,4 @@ license = "MIT"
 [dependencies]
 
 [dev-dependencies]
-cgmath = { version = "0.10.0", default_features = false }
-glium = "0.15.0"
 ndarray = "0.6.0"
