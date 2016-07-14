@@ -216,7 +216,7 @@ pub fn marching_tetrahedra(u: &[f64],
                         let mut vs = [[0.; 3]; 4];
                         let mut vi = s;
                         let mut vp = ps;
-                        us[0] = u[vi];
+                        us[0] = u[vi] - level;
                         vs[0] = vp;
                         for m in 0..3 {
                             let t = perm[m];
