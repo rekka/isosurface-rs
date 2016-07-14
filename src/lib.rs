@@ -174,13 +174,7 @@ pub fn marching_tetrahedra(u: &[f64],
     let mut normals: Vec<[f64; 3]> = Vec::new();
     let mut faces: Vec<[u32; 3]> = Vec::new();
 
-    let idx = [[(0, 0, 0), (1, 0, 0), (1, 1, 0), (1, 1, 1)],
-               [(0, 0, 0), (1, 0, 0), (1, 0, 1), (1, 1, 1)],
-               [(0, 0, 0), (0, 1, 0), (1, 1, 0), (1, 1, 1)],
-               [(0, 0, 0), (0, 1, 0), (0, 1, 1), (1, 1, 1)],
-               [(0, 0, 0), (0, 0, 1), (1, 0, 1), (1, 1, 1)],
-               [(0, 0, 0), (0, 0, 1), (0, 1, 1), (1, 1, 1)]];
-
+    // permutations of [0, 1, 2]
     let perms = [
         [0, 1, 2],
         [0, 2, 1],
@@ -190,31 +184,53 @@ pub fn marching_tetrahedra(u: &[f64],
         [2, 1, 0],
     ];
 
-    let inv_perms = {
+    // inverse permutation (index where the element goes)
+    let (inv_perms, idx) = {
         let mut inv_perms = [[0;3];6];
+        let mut idx = [[[0;3];4];6];
 
         for i in 0..6 {
+            let mut d = [0; 3];
+            idx[i][0] = d;
             for j in 0..3 {
+                d[perms[i][j]] += 1;
+                idx[i][j + 1] = d;
                 inv_perms[i][perms[i][j]] = j;
             }
         }
 
-        inv_perms
+        (inv_perms, idx)
     };
+
+    let strides = [nj * nk, nk, 1];
 
     for i in 1..ni {
         for j in 1..nj {
             for k in 1..nk {
                 // split each cube into 6 tetrahedra, emit triangles
-                let s = i * nj * nk + j * nk + k;
-                let mut us = [0.; 4];
-                let mut vs = [[0.; 3]; 4];
+                // vertex position
+                let s = (i - 1) * nj * nk + (j - 1) * nk + (k - 1);
+                let ps = [(i - 1) as f64, (j - 1)  as f64, (k - 1) as f64];
 
-                for (t, p) in idx.iter().zip(inv_perms.iter()) {
-                    for m in 0..4 {
-                        us[m] = u[s - t[m].0 * nj * nk - t[m].1 * nk - t[m].2] - level;
-                        vs[m] = [(i - t[m].0) as f64, (j - t[m].1) as f64, (k - t[m].2) as f64];
-                    }
+                for (perm, p) in perms.iter().zip(inv_perms.iter()) {
+                    // find tetrahedron data by walking along the edges of a cube
+                    // in the order given by the permutation
+                    let (us, vs)  = {
+                        let mut us = [0.; 4];
+                        let mut vs = [[0.; 3]; 4];
+                        let mut vi = s;
+                        let mut vp = ps;
+                        us[0] = u[vi];
+                        vs[0] = vp;
+                        for m in 0..3 {
+                            let t = perm[m];
+                            vi += strides[t];
+                            vp[t] += 1.;
+                            us[m + 1] = u[vi] - level;
+                            vs[m + 1] = vp;
+                        }
+                        (us, vs)
+                    };
 
                     tetrahedron(us, vs, &mut verts, &mut faces);
                     // normals

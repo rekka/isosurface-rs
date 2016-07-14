@@ -28,7 +28,8 @@ mod surface {
         verts: glium::VertexBuffer<Vertex>,
         indices: glium::IndexBuffer<u32>,
         program: glium::Program,
-        model: [[f32;4];4],
+        normal_program: glium::Program,
+        model: [[f32; 4]; 4],
     }
 
     impl Surface {
@@ -73,7 +74,8 @@ mod surface {
 
             let verts = {
 
-                let verts: Vec<_> = verts.iter().zip(normals.iter())
+                let verts: Vec<_> = verts.iter()
+                    .zip(normals.iter())
                     .map(|(v, n)| {
                         Vertex {
                             position: [v[0] as f32, v[1] as f32, v[2] as f32],
@@ -144,10 +146,84 @@ mod surface {
                 glium::Program::from_source(facade, vertex_shader_src, fragment_shader_src, None)
                     .unwrap();
 
+            let normal_vertex_shader_src = r#"
+    #version 150
+    in vec3 position;
+    in vec3 normal;
+
+    out Vertex
+    {
+      vec3 normal;
+    } vertex;
+
+    void main()
+    {
+      gl_Position = vec4(position, 1.0);
+      vertex.normal = normal;
+    }
+    "#;
+
+            let normal_geometry_shader_src = r#"
+    #version 150
+    layout(triangles) in;
+
+    // Three lines will be generated: 6 vertices
+    layout(line_strip, max_vertices=6) out;
+
+    uniform float normal_length;
+    uniform mat4 perspective;
+    uniform mat4 view;
+    uniform mat4 model;
+
+    in Vertex
+    {
+      vec3 normal;
+    } vertex[];
+
+    out vec4 vertex_color;
+
+    void main()
+    {
+      int i;
+      mat4 matrix = perspective * view * model;
+      for(i=0; i < gl_in.length(); i++)
+      {
+        vec3 p = gl_in[i].gl_Position.xyz;
+        vec3 n = vertex[i].normal;
+
+        gl_Position =  matrix * vec4(p, 1.0);
+        EmitVertex();
+
+        gl_Position = matrix * vec4(p + n * normal_length, 1.0);
+        EmitVertex();
+
+        EndPrimitive();
+      }
+    }
+            "#;
+
+            let normal_fragment_shader_src = r#"
+        #version 150
+
+
+        const vec4 normal_color = vec4(0.0, 1.0, 0.0, 1.0);
+        out vec4 color;
+
+        void main() {
+            color = normal_color;
+        }
+    "#;
+
+            let normal_program = glium::Program::from_source(facade,
+                                                             normal_vertex_shader_src,
+                                                             normal_fragment_shader_src,
+                                                             Some(normal_geometry_shader_src))
+                .unwrap();
             Surface {
                 verts: verts,
                 indices: indices,
                 program: program,
+                normal_program: normal_program,
                 model: model,
             }
         }
@@ -155,7 +231,8 @@ mod surface {
         pub fn draw<S: glium::Surface>(&self,
                                        target: &mut S,
                                        camera: &support::camera::CameraState,
-                                       wireframe: bool)
+                                       wireframe: bool,
+                                       normals: bool)
                                        -> Result<(), glium::DrawError> {
             let light = [1.4, 0.4, -0.7f32];
 
@@ -175,19 +252,35 @@ mod surface {
                 ..Default::default()
             };
 
-            target.draw(&self.verts, &self.indices, &self.program,
-                    &uniform! { model: self.model,
+            try!(target.draw(&self.verts,
+                             &self.indices,
+                             &self.program,
+                             &uniform! { model: self.model,
                                 view: camera.get_view(),
                                 perspective: camera.get_perspective(),
                                 u_light: light },
-                    &params)
+                             &params));
+            if normals {
+
+                try!(target.draw(&self.verts,
+                                 &self.indices,
+                                 &self.normal_program,
+                                 &uniform! { model: self.model,
+                                view: camera.get_view(),
+                                perspective: camera.get_perspective(),
+                                normal_length: 1f32 },
+                                 &params));
+            }
+
+            Ok(())
+
         }
     }
 
 }
 
 fn main() {
-    let res = 100;
+    let res = 3;
     let xs = Array::linspace(-0.5, 0.5, res);
     let ys = Array::linspace(-0.5, 0.5, res);
     let zs = Array::linspace(-0.5, 0.5, res);
@@ -205,8 +298,11 @@ fn main() {
         u
     };
 
-    let level = 0.1;
+    let level = 0.0;
     let (verts, faces, normals) = marching_tetrahedra(u.as_slice().unwrap(), dim, level);
+
+    println!("{:?}", verts);
+    println!("{:?}", normals);
 
 
     use glium::{DisplayBuild, Surface};
@@ -219,6 +315,7 @@ fn main() {
 
     let mut camera = support::camera::CameraState::new();
     let mut wireframe = false;
+    let mut show_normals = false;
 
     loop {
         camera.update();
@@ -226,7 +323,7 @@ fn main() {
         let mut target = display.draw();
         target.clear_color_and_depth((0.0, 0.0, 0.0, 1.0), 1.0);
 
-        surface.draw(&mut target, &camera, wireframe).unwrap();
+        surface.draw(&mut target, &camera, wireframe, show_normals).unwrap();
         target.finish().unwrap();
 
         for ev in display.poll_events() {
@@ -236,6 +333,11 @@ fn main() {
                                              _,
                                              Some(glutin::VirtualKeyCode::F)) => {
                     wireframe = !wireframe
+                }
+                glutin::Event::KeyboardInput(glutin::ElementState::Pressed,
+                                             _,
+                                             Some(glutin::VirtualKeyCode::N)) => {
+                    show_normals = !show_normals
                 }
                 ev => camera.process_input(&ev),
             }
