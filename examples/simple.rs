@@ -27,4 +27,5 @@ fn main() {
 
     println!("{:?}", verts);
     println!("{:?}", faces);
+    println!("{:?}", normals);
 }
