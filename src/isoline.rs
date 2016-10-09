@@ -21,17 +21,14 @@ fn triangle(u: [f64; 3], v: [[f64; 2]; 3], verts: &mut Vec<[f64; 2]>) {
             let u1 = u1 + tiny;
             if u2 >= 0. {
             } else {
-                let i = verts.len() as u32;
                 verts.push(interpolate(u2, u0, v2, v0));
                 verts.push(interpolate(u2, u1, v2, v1));
             }
         } else {
             if u2 >= 0. {
-                let i = verts.len() as u32;
                 verts.push(interpolate(u1, u0, v1, v0));
                 verts.push(interpolate(u1, u2, v1, v2));
             } else {
-                let i = verts.len() as u32;
                 verts.push(interpolate(u1, u0, v1, v0));
                 verts.push(interpolate(u2, u0, v2, v0));
             }
@@ -40,17 +37,14 @@ fn triangle(u: [f64; 3], v: [[f64; 2]; 3], verts: &mut Vec<[f64; 2]>) {
         if u1 >= 0. {
             let u1 = u1 + tiny;
             if u2 >= 0. {
-                let i = verts.len() as u32;
                 verts.push(interpolate(u0, u1, v0, v1));
                 verts.push(interpolate(u0, u2, v0, v2));
             } else {
-                let i = verts.len() as u32;
                 verts.push(interpolate(u0, u1, v0, v1));
                 verts.push(interpolate(u2, u1, v2, v1));
             }
         } else {
             if u2 >= 0. {
-                let i = verts.len() as u32;
                 verts.push(interpolate(u0, u2, v0, v2));
                 verts.push(interpolate(u1, u2, v1, v2));
             } else {

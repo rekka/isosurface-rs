@@ -27,7 +27,6 @@ def recur(idx):
         else:
             zero.append(i)
 
-    print('let i = verts.len() as u32;')
     for i in one:
         for j in zero:
             print('verts.push(interpolate(u' + str(i) + ', u' + str(j) + ', v' + str(i) + ', v' + str(j) + '));')

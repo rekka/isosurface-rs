@@ -1,3 +1,6 @@
+//! Implementations of various isosurface algorithms.
+//!
+//! See `examples/` for sample code.
 
 mod isoline;
 pub use isoline::marching_triangles;
