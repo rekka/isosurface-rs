@@ -7,7 +7,7 @@ use isosurface::marching_triangles;
 use gnuplot::{Figure, AxesCommon};
 
 fn main() {
-    let n = 5;
+    let n = 6;
     let xs = Array::linspace(-0.5f64, 0.5, n);
     let ys = Array::linspace(-0.5, 0.5, n);
 
@@ -28,6 +28,15 @@ fn main() {
     {
         let mut axes = fg.axes2d();
         axes.set_aspect_ratio(gnuplot::AutoOption::Fix(1.));
+
+        let grid_opt = [gnuplot::PlotOption::LineStyle(gnuplot::DashType::DotDash)];
+
+        for x in 0..n {
+            axes.lines(&[x, x], &[0, n-1], &grid_opt);
+            axes.lines(&[0, n-1], &[x, x], &grid_opt);
+            axes.lines(&[0, x], &[n-1 - x, n-1], &grid_opt);
+            axes.lines(&[x, n-1], &[0, n-1 - x], &grid_opt);
+        }
 
         for &level in &[-0.1, 0., 0.1] {
             let verts = marching_triangles(u.as_slice().unwrap(), dim, level);
