@@ -3,6 +3,14 @@ pub trait Interpolate<T> {
     fn interpolate(&self, other: &Self, a: T, b: T) -> Self;
 }
 
+impl Interpolate<f64> for f64 {
+    #[inline]
+    fn interpolate(&self, other: &Self, a: f64, b: f64) -> Self {
+        let x = a / (a - b);
+        (1. - x) * *self + x * *other
+    }
+}
+
 impl Interpolate<f64> for [f64; 3] {
     #[inline]
     fn interpolate(&self, other: &Self, a: f64, b: f64) -> Self {
