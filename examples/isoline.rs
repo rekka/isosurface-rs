@@ -32,10 +32,10 @@ fn main() {
         let grid_opt = [gnuplot::PlotOption::LineStyle(gnuplot::DashType::DotDash)];
 
         for x in 0..n {
-            axes.lines(&[x, x], &[0, n-1], &grid_opt);
-            axes.lines(&[0, n-1], &[x, x], &grid_opt);
-            axes.lines(&[0, x], &[n-1 - x, n-1], &grid_opt);
-            axes.lines(&[x, n-1], &[0, n-1 - x], &grid_opt);
+            axes.lines(&[x, x], &[0, n - 1], &grid_opt);
+            axes.lines(&[0, n - 1], &[x, x], &grid_opt);
+            axes.lines(&[0, x], &[n - 1 - x, n - 1], &grid_opt);
+            axes.lines(&[x, n - 1], &[0, n - 1 - x], &grid_opt);
         }
 
         for &level in &[-0.1, 0., 0.1] {

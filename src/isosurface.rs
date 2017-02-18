@@ -1,21 +1,43 @@
+/// Trait for data that can be linearly interpolated using type T.
+pub trait Interpolate<T> {
+    fn interpolate(&self, other: &Self, a: T, b: T) -> Self;
+}
 
-/// Find the point on a line `v`--`w` where the given linear function is zero.
-///
-/// `a` and `b` are the values of the linear function at points `v`, `w`.
-#[inline]
-fn interpolate(a: f64, b: f64, v: [f64; 3], w: [f64; 3]) -> [f64; 3] {
-    let x = a / (a - b);
-    [(1. - x) * v[0] + x * w[0], (1. - x) * v[1] + x * w[1], (1. - x) * v[2] + x * w[2]]
+impl Interpolate<f64> for [f64; 3] {
+    #[inline]
+    fn interpolate(&self, other: &Self, a: f64, b: f64) -> Self {
+        let x = a / (a - b);
+        let v = self;
+        let w = other;
+        [(1. - x) * v[0] + x * w[0], (1. - x) * v[1] + x * w[1], (1. - x) * v[2] + x * w[2]]
+    }
+}
+
+impl<T> Interpolate<T> for () {
+    fn interpolate(&self, _other: &Self, _a: T, _b: T) -> Self {
+        ()
+    }
+}
+
+impl<T, U, V> Interpolate<T> for (U, V)
+    where T: Copy,
+          U: Interpolate<T>,
+          V: Interpolate<T>
+{
+    fn interpolate(&self, other: &Self, a: T, b: T) -> Self {
+        (self.0.interpolate(&other.0, a, b), self.1.interpolate(&other.1, a, b))
+    }
 }
 
 /// Find the intersection of the zero level set of a linear function with a tetrahedron.
 ///
 /// The level set is given by its values `u` at vertices `v`. The resulting intersection is added
 /// to `verts` (vertex buffer) and `faces` (index buffer into the vertex buffer).
-fn tetrahedron(u: [f64; 4],
-               v: [[f64; 3]; 4],
-               verts: &mut Vec<[f64; 3]>,
-               faces: &mut Vec<[u32; 3]>) {
+fn tetrahedron<T, FV, FF>(u: [f64; 4], v: [T; 4], mut emit_vertex: FV, mut emit_face: FF)
+    where T: Interpolate<f64> + Copy,
+          FV: FnMut(T),
+          FF: FnMut([u32; 3])
+{
     let u0 = u[0];
     let u1 = u[1];
     let u2 = u[2];
@@ -38,62 +60,55 @@ fn tetrahedron(u: [f64; 4],
                 let u2 = u2 + tiny;
                 if u3 >= 0. {
                 } else {
-                    let i = verts.len() as u32;
-                    verts.push(interpolate(u3, u0, v3, v0));
-                    verts.push(interpolate(u3, u1, v3, v1));
-                    verts.push(interpolate(u3, u2, v3, v2));
-                    faces.push([i, i + 1, i + 2]);
+                    emit_vertex(v3.interpolate(&v0, u3, u0));
+                    emit_vertex(v3.interpolate(&v1, u3, u1));
+                    emit_vertex(v3.interpolate(&v2, u3, u2));
+                    emit_face([0, 1, 2]);
                 }
             } else {
                 if u3 >= 0. {
-                    let i = verts.len() as u32;
-                    verts.push(interpolate(u2, u0, v2, v0));
-                    verts.push(interpolate(u2, u1, v2, v1));
-                    verts.push(interpolate(u2, u3, v2, v3));
-                    faces.push([i, i + 1, i + 2]);
+                    emit_vertex(v2.interpolate(&v0, u2, u0));
+                    emit_vertex(v2.interpolate(&v1, u2, u1));
+                    emit_vertex(v2.interpolate(&v3, u2, u3));
+                    emit_face([0, 1, 2]);
                 } else {
-                    let i = verts.len() as u32;
-                    verts.push(interpolate(u2, u0, v2, v0));
-                    verts.push(interpolate(u2, u1, v2, v1));
-                    verts.push(interpolate(u3, u0, v3, v0));
-                    verts.push(interpolate(u3, u1, v3, v1));
-                    faces.push([i, i + 1, i + 2]);
-                    faces.push([i + 2, i + 1, i + 3]);
+                    emit_vertex(v2.interpolate(&v0, u2, u0));
+                    emit_vertex(v2.interpolate(&v1, u2, u1));
+                    emit_vertex(v3.interpolate(&v0, u3, u0));
+                    emit_vertex(v3.interpolate(&v1, u3, u1));
+                    emit_face([0, 1, 2]);
+                    emit_face([2, 1, 3]);
                 }
             }
         } else {
             if u2 >= 0. {
                 let u2 = u2 + tiny;
                 if u3 >= 0. {
-                    let i = verts.len() as u32;
-                    verts.push(interpolate(u1, u0, v1, v0));
-                    verts.push(interpolate(u1, u2, v1, v2));
-                    verts.push(interpolate(u1, u3, v1, v3));
-                    faces.push([i, i + 1, i + 2]);
+                    emit_vertex(v1.interpolate(&v0, u1, u0));
+                    emit_vertex(v1.interpolate(&v2, u1, u2));
+                    emit_vertex(v1.interpolate(&v3, u1, u3));
+                    emit_face([0, 1, 2]);
                 } else {
-                    let i = verts.len() as u32;
-                    verts.push(interpolate(u1, u0, v1, v0));
-                    verts.push(interpolate(u1, u2, v1, v2));
-                    verts.push(interpolate(u3, u0, v3, v0));
-                    verts.push(interpolate(u3, u2, v3, v2));
-                    faces.push([i, i + 1, i + 2]);
-                    faces.push([i + 2, i + 1, i + 3]);
+                    emit_vertex(v1.interpolate(&v0, u1, u0));
+                    emit_vertex(v1.interpolate(&v2, u1, u2));
+                    emit_vertex(v3.interpolate(&v0, u3, u0));
+                    emit_vertex(v3.interpolate(&v2, u3, u2));
+                    emit_face([0, 1, 2]);
+                    emit_face([2, 1, 3]);
                 }
             } else {
                 if u3 >= 0. {
-                    let i = verts.len() as u32;
-                    verts.push(interpolate(u1, u0, v1, v0));
-                    verts.push(interpolate(u1, u3, v1, v3));
-                    verts.push(interpolate(u2, u0, v2, v0));
-                    verts.push(interpolate(u2, u3, v2, v3));
-                    faces.push([i, i + 1, i + 2]);
-                    faces.push([i + 2, i + 1, i + 3]);
+                    emit_vertex(v1.interpolate(&v0, u1, u0));
+                    emit_vertex(v1.interpolate(&v3, u1, u3));
+                    emit_vertex(v2.interpolate(&v0, u2, u0));
+                    emit_vertex(v2.interpolate(&v3, u2, u3));
+                    emit_face([0, 1, 2]);
+                    emit_face([2, 1, 3]);
                 } else {
-                    let i = verts.len() as u32;
-                    verts.push(interpolate(u1, u0, v1, v0));
-                    verts.push(interpolate(u2, u0, v2, v0));
-                    verts.push(interpolate(u3, u0, v3, v0));
-                    faces.push([i, i + 1, i + 2]);
+                    emit_vertex(v1.interpolate(&v0, u1, u0));
+                    emit_vertex(v2.interpolate(&v0, u2, u0));
+                    emit_vertex(v3.interpolate(&v0, u3, u0));
+                    emit_face([0, 1, 2]);
                 }
             }
         }
@@ -103,62 +118,55 @@ fn tetrahedron(u: [f64; 4],
             if u2 >= 0. {
                 let u2 = u2 + tiny;
                 if u3 >= 0. {
-                    let i = verts.len() as u32;
-                    verts.push(interpolate(u0, u1, v0, v1));
-                    verts.push(interpolate(u0, u2, v0, v2));
-                    verts.push(interpolate(u0, u3, v0, v3));
-                    faces.push([i, i + 1, i + 2]);
+                    emit_vertex(v0.interpolate(&v1, u0, u1));
+                    emit_vertex(v0.interpolate(&v2, u0, u2));
+                    emit_vertex(v0.interpolate(&v3, u0, u3));
+                    emit_face([0, 1, 2]);
                 } else {
-                    let i = verts.len() as u32;
-                    verts.push(interpolate(u0, u1, v0, v1));
-                    verts.push(interpolate(u0, u2, v0, v2));
-                    verts.push(interpolate(u3, u1, v3, v1));
-                    verts.push(interpolate(u3, u2, v3, v2));
-                    faces.push([i, i + 1, i + 2]);
-                    faces.push([i + 2, i + 1, i + 3]);
+                    emit_vertex(v0.interpolate(&v1, u0, u1));
+                    emit_vertex(v0.interpolate(&v2, u0, u2));
+                    emit_vertex(v3.interpolate(&v1, u3, u1));
+                    emit_vertex(v3.interpolate(&v2, u3, u2));
+                    emit_face([0, 1, 2]);
+                    emit_face([2, 1, 3]);
                 }
             } else {
                 if u3 >= 0. {
-                    let i = verts.len() as u32;
-                    verts.push(interpolate(u0, u1, v0, v1));
-                    verts.push(interpolate(u0, u3, v0, v3));
-                    verts.push(interpolate(u2, u1, v2, v1));
-                    verts.push(interpolate(u2, u3, v2, v3));
-                    faces.push([i, i + 1, i + 2]);
-                    faces.push([i + 2, i + 1, i + 3]);
+                    emit_vertex(v0.interpolate(&v1, u0, u1));
+                    emit_vertex(v0.interpolate(&v3, u0, u3));
+                    emit_vertex(v2.interpolate(&v1, u2, u1));
+                    emit_vertex(v2.interpolate(&v3, u2, u3));
+                    emit_face([0, 1, 2]);
+                    emit_face([2, 1, 3]);
                 } else {
-                    let i = verts.len() as u32;
-                    verts.push(interpolate(u0, u1, v0, v1));
-                    verts.push(interpolate(u2, u1, v2, v1));
-                    verts.push(interpolate(u3, u1, v3, v1));
-                    faces.push([i, i + 1, i + 2]);
+                    emit_vertex(v0.interpolate(&v1, u0, u1));
+                    emit_vertex(v2.interpolate(&v1, u2, u1));
+                    emit_vertex(v3.interpolate(&v1, u3, u1));
+                    emit_face([0, 1, 2]);
                 }
             }
         } else {
             if u2 >= 0. {
                 let u2 = u2 + tiny;
                 if u3 >= 0. {
-                    let i = verts.len() as u32;
-                    verts.push(interpolate(u0, u2, v0, v2));
-                    verts.push(interpolate(u0, u3, v0, v3));
-                    verts.push(interpolate(u1, u2, v1, v2));
-                    verts.push(interpolate(u1, u3, v1, v3));
-                    faces.push([i, i + 1, i + 2]);
-                    faces.push([i + 2, i + 1, i + 3]);
+                    emit_vertex(v0.interpolate(&v2, u0, u2));
+                    emit_vertex(v0.interpolate(&v3, u0, u3));
+                    emit_vertex(v1.interpolate(&v2, u1, u2));
+                    emit_vertex(v1.interpolate(&v3, u1, u3));
+                    emit_face([0, 1, 2]);
+                    emit_face([2, 1, 3]);
                 } else {
-                    let i = verts.len() as u32;
-                    verts.push(interpolate(u0, u2, v0, v2));
-                    verts.push(interpolate(u1, u2, v1, v2));
-                    verts.push(interpolate(u3, u2, v3, v2));
-                    faces.push([i, i + 1, i + 2]);
+                    emit_vertex(v0.interpolate(&v2, u0, u2));
+                    emit_vertex(v1.interpolate(&v2, u1, u2));
+                    emit_vertex(v3.interpolate(&v2, u3, u2));
+                    emit_face([0, 1, 2]);
                 }
             } else {
                 if u3 >= 0. {
-                    let i = verts.len() as u32;
-                    verts.push(interpolate(u0, u3, v0, v3));
-                    verts.push(interpolate(u1, u3, v1, v3));
-                    verts.push(interpolate(u2, u3, v2, v3));
-                    faces.push([i, i + 1, i + 2]);
+                    emit_vertex(v0.interpolate(&v3, u0, u3));
+                    emit_vertex(v1.interpolate(&v3, u1, u3));
+                    emit_vertex(v2.interpolate(&v3, u2, u3));
+                    emit_face([0, 1, 2]);
                 } else {
                 }
             }
@@ -179,12 +187,28 @@ pub fn marching_tetrahedra(u: &[f64],
                            level: f64)
                            -> (Vec<[f64; 3]>, Vec<[u32; 3]>, Vec<[f64; 3]>) {
 
+    let (verts, faces, normals, _) =
+        marching_tetrahedra_with_data(u, dim, level, &vec![(); u.len()]);
+
+    (verts, faces, normals)
+}
+
+/// As `marching_tetrahedra`, but also linearly interpolates the provided data for each vertex.
+pub fn marching_tetrahedra_with_data<T>(u: &[f64],
+                                        dim: (usize, usize, usize),
+                                        level: f64,
+                                        data: &[T])
+                                        -> (Vec<[f64; 3]>, Vec<[u32; 3]>, Vec<[f64; 3]>, Vec<T>)
+    where T: Interpolate<f64> + Default + Copy
+{
+
     let (ni, nj, nk) = dim;
     assert_eq!(ni * nj * nk, u.len());
 
     let mut verts: Vec<[f64; 3]> = Vec::new();
     let mut normals: Vec<[f64; 3]> = Vec::new();
     let mut faces: Vec<[u32; 3]> = Vec::new();
+    let mut interp_data: Vec<T> = Vec::new();
 
     // permutations of [0, 1, 2]
     let perms = [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]];
@@ -215,22 +239,32 @@ pub fn marching_tetrahedra(u: &[f64],
                     // in the order given by the permutation
                     let (us, vs) = {
                         let mut us = [0.; 4];
-                        let mut vs = [[0.; 3]; 4];
+                        let mut vs = [([0.; 3], T::default()); 4];
                         let mut vi = s;
                         let mut vp = ps;
                         us[0] = u[vi] - level;
-                        vs[0] = vp;
+                        vs[0] = (vp, data[vi]);
                         for m in 0..3 {
                             let t = perm[m];
                             vi += strides[t];
                             vp[t] += 1.;
                             us[m + 1] = u[vi] - level;
-                            vs[m + 1] = vp;
+                            vs[m + 1] = (vp, data[vi]);
                         }
                         (us, vs)
                     };
 
-                    tetrahedron(us, vs, &mut verts, &mut faces);
+                    let cur = verts.len() as u32;
+                    tetrahedron(us,
+                                vs,
+                                |(v, d)| {
+                                    verts.push(v);
+                                    interp_data.push(d);
+                                },
+                                |f| {
+                                    faces.push([f[0] + cur, f[1] + cur, f[2] + cur]);
+                                });
+
                     // normals
                     let n = [us[1] - us[0], us[2] - us[1], us[3] - us[2]];
                     let n = [n[inv_perm[0]], n[inv_perm[1]], n[inv_perm[2]]];
@@ -243,5 +277,5 @@ pub fn marching_tetrahedra(u: &[f64],
         }
     }
 
-    (verts, faces, normals)
+    (verts, faces, normals, interp_data)
 }
