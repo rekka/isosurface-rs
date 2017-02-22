@@ -234,6 +234,21 @@ pub fn marching_tetrahedra_with_data<T>(u: &[f64],
 
     let strides = [nj * nk, nk, 1];
 
+    let vert_offsets = {
+        let mut vert_offsets = [0; 8];
+
+        let mut c = 0;
+        for i in 0..2 {
+            for j in 0..2 {
+                for k in 0..2 {
+                    vert_offsets[c] = i * nj * nk + j * nk + k;
+                    c += 1;
+                }
+            }
+        }
+        vert_offsets
+    };
+
     for i in 1..ni {
         for j in 1..nj {
             for k in 1..nk {
@@ -241,6 +256,12 @@ pub fn marching_tetrahedra_with_data<T>(u: &[f64],
                 // vertex position
                 let s = (i - 1) * nj * nk + (j - 1) * nk + (k - 1);
                 let ps = [(i - 1) as f64, (j - 1) as f64, (k - 1) as f64];
+
+                let n_above = vert_offsets.iter().filter(|&offset| u[s + offset] >= level).count();
+
+                if n_above == 0 || n_above == 8 {
+                    continue;
+                }
 
                 for (perm, inv_perm) in perms.iter().zip(inv_perms.iter()) {
                     // find tetrahedron data by walking along the edges of a cube
