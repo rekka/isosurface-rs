@@ -39,11 +39,11 @@ fn main() {
         }
 
         for &level in &[-0.1, 0., 0.1] {
-            let verts = marching_triangles(u.as_slice().unwrap(), dim, level);
+            let isoline = marching_triangles(u.as_slice().unwrap(), dim, level);
 
-            println!("level {} has {} connected component(s)", level, verts.len());
+            println!("level {} has {} connected component(s)", level, isoline.components().len());
 
-            for line in verts {
+            for line in isoline.components() {
                 axes.lines(line.iter().map(|p| p[0]), line.iter().map(|p| p[1]), &[]);
             }
         }

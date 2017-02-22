@@ -1,5 +1,44 @@
 use std::collections::HashMap;
 
+pub struct Isoline {
+    verts: Vec<[f64; 2]>,
+    components: Vec<usize>,
+}
+
+impl Isoline {
+    pub fn components(&self) -> Components {
+        Components {
+            isoline: self,
+            component: 0,
+        }
+    }
+}
+
+pub struct Components<'a> {
+    isoline: &'a Isoline,
+    component: usize,
+}
+
+impl<'a> Iterator for Components<'a> {
+    type Item = &'a [[f64; 2]];
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let comps = &self.isoline.components;
+        if self.component + 1 < comps.len() {
+            let c = self.component;
+            self.component += 1;
+            return Some(&self.isoline.verts[comps[c]..comps[c + 1]]);
+        }
+        None
+    }
+}
+
+impl<'a> ExactSizeIterator for Components<'a> {
+    fn len(&self) -> usize {
+        self.isoline.components.len() - self.component - 1
+    }
+}
+
 fn interpolate(a: f64, b: f64, v: [f64; 2], w: [f64; 2]) -> [f64; 2] {
     let x = a / (a - b);
     [(1. - x) * v[0] + x * w[0], (1. - x) * v[1] + x * w[1]]
@@ -14,11 +53,12 @@ fn interpolate(a: f64, b: f64, v: [f64; 2], w: [f64; 2]) -> [f64; 2] {
 /// on each triangle.
 ///
 /// Returns a `Vec` of all connected components of the isoline.
-pub fn marching_triangles(u: &[f64], dim: (usize, usize), level: f64) -> Vec<Vec<[f64; 2]>> {
+pub fn marching_triangles(u: &[f64], dim: (usize, usize), level: f64) -> Isoline {
     let (ni, nj) = dim;
     assert_eq!(ni * nj, u.len());
 
-    let mut verts: Vec<Vec<[f64; 2]>> = Vec::new();
+    let mut verts: Vec<[f64; 2]> = Vec::new();
+    let mut components: Vec<usize> = Vec::new();
 
     // first find all the edges connecting the sides of the triangles
     let mut edges: HashMap<(usize, usize), (usize, usize)> = HashMap::new();
@@ -30,18 +70,9 @@ pub fn marching_triangles(u: &[f64], dim: (usize, usize), level: f64) -> Vec<Vec
     let vs = [0, si, sj, si + sj];
     // six sides of the two triangles within a square (diagonal is duplicated)
     // connecting vertices 0,...,3
-    let es = [
-        [0, 2],
-        [2, 3],
-        [0, 3],
-        [0, 3],
-        [0, 1],
-        [1, 3],
-    ];
+    let es = [[0, 2], [2, 3], [0, 3], [0, 3], [0, 1], [1, 3]];
 
-    let bit = |k: u32, bit: u32| {
-        (k & (1 << bit)) >> bit
-    };
+    let bit = |k: u32, bit: u32| (k & (1 << bit)) >> bit;
 
     // a map between a bit mask and the list between connected triangle sides
     let table = {
@@ -88,12 +119,12 @@ pub fn marching_triangles(u: &[f64], dim: (usize, usize), level: f64) -> Vec<Vec
     // each line is a side of two triangles, this is a mapping between them
     let dual = |(s, ei)| {
         match ei {
-            0 => (s -si, 5),
+            0 => (s - si, 5),
             1 => (s + sj, 4),
             2 => (s, 3),
             3 => (s, 2),
-            4 => (s-sj, 1),
-            5 => (s +si, 0),
+            4 => (s - sj, 1),
+            5 => (s + si, 0),
             _ => unreachable!(),
         }
     };
@@ -116,37 +147,40 @@ pub fn marching_triangles(u: &[f64], dim: (usize, usize), level: f64) -> Vec<Vec
     while !edges.is_empty() {
         let start = *edges.iter().next().unwrap().0;
 
-        let mut component = Vec::new();
+        let comp_begin = verts.len();
+        components.push(comp_begin);
 
-        component.push(to_coord(start));
+        verts.push(to_coord(start));
 
-            let trace = |start, edges: &mut HashMap<_, _>, component: &mut Vec<_>| {
-                let mut next = start;
+        let trace = |start, edges: &mut HashMap<_, _>, verts: &mut Vec<_>| {
+            let mut next = start;
 
-                while let Some(other) = edges.remove(&next) {
-                    edges.remove(&other);
+            while let Some(other) = edges.remove(&next) {
+                edges.remove(&other);
 
-                    next = dual(other);
+                next = dual(other);
 
-                    component.push(to_coord(next));
-                }
-            };
-
-            trace(start, &mut edges, &mut component);
-
-            let start = dual(start);
-
-            // if the component is not a closed curve, we might have to walk in the other direction
-            // from the starting side to find the full component
-            if edges.contains_key(&start) {
-                component.reverse();
-
-                trace(start, &mut edges, &mut component);
+                verts.push(to_coord(next));
             }
+        };
 
-        verts.push(component);
+        trace(start, &mut edges, &mut verts);
+
+        let start = dual(start);
+
+        // if the component is not a closed curve, we might have to walk in the other direction
+        // from the starting side to find the full component
+        if edges.contains_key(&start) {
+            verts[comp_begin..].reverse();
+
+            trace(start, &mut edges, &mut verts);
+        }
     }
 
-    verts
-}
+    components.push(verts.len());
 
+    Isoline {
+        verts: verts,
+        components: components,
+    }
+}
