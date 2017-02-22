@@ -18,7 +18,7 @@ fn main() {
 
         for ((i, j), u) in u.indexed_iter_mut() {
             let (x, y) = (xs[i], ys[j]);
-            *u = (x * x + y * y).sqrt() - 0.3;
+            *u = (x * x + y * y).sqrt() - 0.5;
         }
         u
     };
@@ -41,7 +41,9 @@ fn main() {
         for &level in &[-0.1, 0., 0.1] {
             let verts = marching_triangles(u.as_slice().unwrap(), dim, level);
 
-            for line in verts.chunks(2) {
+            println!("level {} has {} connected component(s)", level, verts.len());
+
+            for line in verts {
                 axes.lines(line.iter().map(|p| p[0]), line.iter().map(|p| p[1]), &[]);
             }
         }
