@@ -2,8 +2,9 @@ use interpolate::Interpolate;
 
 /// Find the intersection of the zero level set of a linear function with a tetrahedron.
 ///
-/// The level set is given by its values `u` at vertices `v`. The resulting intersection is added
-/// to `verts` (vertex buffer) and `faces` (index buffer into the vertex buffer).
+/// The level set is determined by the function values `u` at vertices `v`. The resulting
+/// intersection emits a vertex (at most 4), and each triangle emits a face with indices into the
+/// emitted vertices.
 fn tetrahedron<T, FV, FF>(u: [f64; 4], v: [T; 4], mut emit_vertex: FV, mut emit_face: FF)
     where T: Interpolate<f64> + Copy,
           FV: FnMut(T),
@@ -175,6 +176,7 @@ pub fn marching_tetrahedra_with_data<T>(u: &[f64],
 
     let (ni, nj, nk) = dim;
     assert_eq!(ni * nj * nk, u.len());
+    assert_eq!(ni * nj * nk, data.len());
 
     let mut verts: Vec<[f64; 3]> = Vec::new();
     let mut normals: Vec<[f64; 3]> = Vec::new();
@@ -271,3 +273,98 @@ pub fn marching_tetrahedra_with_data<T>(u: &[f64],
 
     (verts, faces, normals, interp_data)
 }
+
+/// Emits the triangles of the level set of u intersecting tetrahedra of the mesh.
+///
+/// For each triangle, emits the coordinates of its vertices and the linearly interpolated data
+/// at these vertices.
+///
+/// The coordinate system is chosen so that the node (i, j, k) with index i * dim.1 * dim.2 + j *
+/// dim.2 + k has coordinate
+/// (i, j, k).
+pub fn marching_tetrahedra_with_data_emit<F, D>(u: &[f64], data: &[D], dim: (usize, usize, usize), level:
+        f64, mut emit: F) where F: FnMut([[f64; 3]; 3], [D; 3]), D: Interpolate<f64> + Default + Copy {
+    let (ni, nj, nk) = dim;
+    assert_eq!(ni * nj * nk, u.len());
+    assert_eq!(ni * nj * nk, data.len());
+
+    let mut verts: Vec<[f64; 3]> = Vec::with_capacity(4);
+    let mut faces: Vec<[u32; 3]> = Vec::with_capacity(2);
+    let mut interp_data: Vec<D> = Vec::with_capacity(4);
+
+    // permutations of [0, 1, 2]
+    let perms = [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]];
+
+    let strides = [nj * nk, nk, 1];
+
+    let vert_offsets = {
+        let mut vert_offsets = [0; 8];
+
+        let mut c = 0;
+        for i in 0..2 {
+            for j in 0..2 {
+                for k in 0..2 {
+                    vert_offsets[c] = i * nj * nk + j * nk + k;
+                    c += 1;
+                }
+            }
+        }
+        vert_offsets
+    };
+
+    for i in 1..ni {
+        for j in 1..nj {
+            for k in 1..nk {
+                // split each cube into 6 tetrahedra, emit triangles
+                // vertex position
+                let s = (i - 1) * nj * nk + (j - 1) * nk + (k - 1);
+                let ps = [(i - 1) as f64, (j - 1) as f64, (k - 1) as f64];
+
+                let n_above = vert_offsets.iter().filter(|&offset| u[s + offset] >= level).count();
+
+                if n_above == 0 || n_above == 8 {
+                    continue;
+                }
+
+                for perm in &perms {
+                    // find tetrahedron data by walking along the edges of a cube
+                    // in the order given by the permutation
+                    let (us, vs) = {
+                        let mut us = [0.; 4];
+                        let mut vs = [([0.; 3], D::default()); 4];
+                        let mut vi = s;
+                        let mut vp = ps;
+                        us[0] = u[vi] - level;
+                        vs[0] = (vp, data[vi]);
+                        for m in 0..3 {
+                            let t = perm[m];
+                            vi += strides[t];
+                            vp[t] += 1.;
+                            us[m + 1] = u[vi] - level;
+                            vs[m + 1] = (vp, data[vi]);
+                        }
+                        (us, vs)
+                    };
+
+                    verts.clear();
+                    interp_data.clear();
+                    faces.clear();
+                    tetrahedron(us,
+                                vs,
+                                |(v, d)| {
+                                    verts.push(v);
+                                    interp_data.push(d);
+                                },
+                                |f| {
+                                    faces.push(f);
+                                });
+                    for f in &faces {
+                        emit([verts[f[0] as usize], verts[f[1] as usize], verts[f[2] as usize]],
+                             [interp_data[f[0] as usize], interp_data[f[1] as usize], interp_data[f[2] as usize]]);
+                    }
+                }
+            }
+        }
+    }
+}
+

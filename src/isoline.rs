@@ -183,7 +183,8 @@ pub fn marching_triangles(u: &[f64], dim: (usize, usize), level: f64) -> Isoline
     }
 }
 
-
+/// Emits indices of edges of the triangular mesh connect by the `level` level set curve of
+/// function given by values `u` at the nodes.
 pub fn marching_triangles_emit_connected_edges<F>(u: &[f64], dim: (usize, usize), level:
         f64, mut emit: F) where F: FnMut((usize, usize), (usize, usize)) {
     let (ni, nj) = dim;
