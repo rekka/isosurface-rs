@@ -1,4 +1,9 @@
-//! Implementations of various isosurface algorithms.
+//! Implementations of isoline and isosurface algorithms based on the marching tetrahedra
+//! algorithm.
+//!
+//! A. Doi and A. Koide, _An Efficient Method of Triangulating Equi-Valued Surfaces by Using
+//! Tetrahedral Cells_, IEICE TRANSACTIONS on Information and Systems **E74-D** (1991), no. 1,
+//! 214--224.
 //!
 //! See `examples/` for sample code.
 
