@@ -1,10 +1,10 @@
-extern crate isosurface;
 extern crate gnuplot;
+extern crate isosurface;
 extern crate ndarray;
 
 use ndarray::Array;
 use isosurface::marching_triangles;
-use gnuplot::{Figure, AxesCommon};
+use gnuplot::{AxesCommon, Figure};
 
 fn main() {
     let n = 6;
@@ -41,7 +41,11 @@ fn main() {
         for &level in &[-0.1, 0., 0.1] {
             let isoline = marching_triangles(u.as_slice().unwrap(), dim, level);
 
-            println!("level {} has {} connected component(s)", level, isoline.components().len());
+            println!(
+                "level {} has {} connected component(s)",
+                level,
+                isoline.components().len()
+            );
 
             for line in isoline.components() {
                 axes.lines(line.iter().map(|p| p[0]), line.iter().map(|p| p[1]), &[]);

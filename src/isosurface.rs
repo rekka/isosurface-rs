@@ -6,9 +6,10 @@ use interpolate::Interpolate;
 /// intersection emits a vertex (at most 4), and each triangle emits a face with indices into the
 /// emitted vertices.
 fn tetrahedron<T, FV, FF>(u: [f64; 4], v: [T; 4], mut emit_vertex: FV, mut emit_face: FF)
-    where T: Interpolate<f64> + Copy,
-          FV: FnMut(T),
-          FF: FnMut([u32; 3])
+where
+    T: Interpolate<f64> + Copy,
+    FV: FnMut(T),
+    FF: FnMut([u32; 3]),
 {
     let u0 = u[0];
     let u1 = u[1];
@@ -145,7 +146,6 @@ fn tetrahedron<T, FV, FF>(u: [f64; 4], v: [T; 4], mut emit_vertex: FV, mut emit_
         }
     }
     // END GENERATED
-
 }
 
 /// Finds the isosurface at `level` of a function given by its values `u` on a regular grid  using
@@ -154,11 +154,11 @@ fn tetrahedron<T, FV, FF>(u: [f64; 4], v: [T; 4], mut emit_vertex: FV, mut emit_
 /// `dim` is the dimension of the array `u` assumed to be in _row-major order_ (C order).
 ///
 /// Returns vertices, faces and normals of the generated triangular mesh.
-pub fn marching_tetrahedra(u: &[f64],
-                           dim: (usize, usize, usize),
-                           level: f64)
-                           -> (Vec<[f64; 3]>, Vec<[u32; 3]>, Vec<[f64; 3]>) {
-
+pub fn marching_tetrahedra(
+    u: &[f64],
+    dim: (usize, usize, usize),
+    level: f64,
+) -> (Vec<[f64; 3]>, Vec<[u32; 3]>, Vec<[f64; 3]>) {
     let (verts, faces, normals, _) =
         marching_tetrahedra_with_data(u, dim, level, &vec![(); u.len()]);
 
@@ -166,14 +166,15 @@ pub fn marching_tetrahedra(u: &[f64],
 }
 
 /// As `marching_tetrahedra`, but also linearly interpolates the provided data for each vertex.
-pub fn marching_tetrahedra_with_data<T>(u: &[f64],
-                                        dim: (usize, usize, usize),
-                                        level: f64,
-                                        data: &[T])
-                                        -> (Vec<[f64; 3]>, Vec<[u32; 3]>, Vec<[f64; 3]>, Vec<T>)
-    where T: Interpolate<f64> + Default + Copy
+pub fn marching_tetrahedra_with_data<T>(
+    u: &[f64],
+    dim: (usize, usize, usize),
+    level: f64,
+    data: &[T],
+) -> (Vec<[f64; 3]>, Vec<[u32; 3]>, Vec<[f64; 3]>, Vec<T>)
+where
+    T: Interpolate<f64> + Default + Copy,
 {
-
     let (ni, nj, nk) = dim;
     assert_eq!(ni * nj * nk, u.len());
     assert_eq!(ni * nj * nk, data.len());
@@ -184,7 +185,14 @@ pub fn marching_tetrahedra_with_data<T>(u: &[f64],
     let mut interp_data: Vec<T> = Vec::new();
 
     // permutations of [0, 1, 2]
-    let perms = [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]];
+    let perms = [
+        [0, 1, 2],
+        [0, 2, 1],
+        [1, 0, 2],
+        [1, 2, 0],
+        [2, 0, 1],
+        [2, 1, 0],
+    ];
 
     // inverse permutation (index where the element goes)
     let inv_perms = {
@@ -222,7 +230,10 @@ pub fn marching_tetrahedra_with_data<T>(u: &[f64],
                 let s = (i - 1) * nj * nk + (j - 1) * nk + (k - 1);
                 let ps = [(i - 1) as f64, (j - 1) as f64, (k - 1) as f64];
 
-                let n_above = vert_offsets.iter().filter(|&offset| u[s + offset] >= level).count();
+                let n_above = vert_offsets
+                    .iter()
+                    .filter(|&offset| u[s + offset] >= level)
+                    .count();
 
                 if n_above == 0 || n_above == 8 {
                     continue;
@@ -249,15 +260,17 @@ pub fn marching_tetrahedra_with_data<T>(u: &[f64],
                     };
 
                     let cur = verts.len() as u32;
-                    tetrahedron(us,
-                                vs,
-                                |(v, d)| {
-                                    verts.push(v);
-                                    interp_data.push(d);
-                                },
-                                |f| {
-                                    faces.push([f[0] + cur, f[1] + cur, f[2] + cur]);
-                                });
+                    tetrahedron(
+                        us,
+                        vs,
+                        |(v, d)| {
+                            verts.push(v);
+                            interp_data.push(d);
+                        },
+                        |f| {
+                            faces.push([f[0] + cur, f[1] + cur, f[2] + cur]);
+                        },
+                    );
 
                     // normals
                     let n = [us[1] - us[0], us[2] - us[1], us[3] - us[2]];
@@ -282,8 +295,16 @@ pub fn marching_tetrahedra_with_data<T>(u: &[f64],
 /// The coordinate system is chosen so that the node (i, j, k) with index i * dim.1 * dim.2 + j *
 /// dim.2 + k has coordinate
 /// (i, j, k).
-pub fn marching_tetrahedra_with_data_emit<F, D>(u: &[f64], data: &[D], dim: (usize, usize, usize), level:
-        f64, mut emit: F) where F: FnMut([[f64; 3]; 3], [D; 3]), D: Interpolate<f64> + Default + Copy {
+pub fn marching_tetrahedra_with_data_emit<F, D>(
+    u: &[f64],
+    data: &[D],
+    dim: (usize, usize, usize),
+    level: f64,
+    mut emit: F,
+) where
+    F: FnMut([[f64; 3]; 3], [D; 3]),
+    D: Interpolate<f64> + Default + Copy,
+{
     let (ni, nj, nk) = dim;
     assert_eq!(ni * nj * nk, u.len());
     assert_eq!(ni * nj * nk, data.len());
@@ -293,7 +314,14 @@ pub fn marching_tetrahedra_with_data_emit<F, D>(u: &[f64], data: &[D], dim: (usi
     let mut interp_data: Vec<D> = Vec::with_capacity(4);
 
     // permutations of [0, 1, 2]
-    let perms = [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]];
+    let perms = [
+        [0, 1, 2],
+        [0, 2, 1],
+        [1, 0, 2],
+        [1, 2, 0],
+        [2, 0, 1],
+        [2, 1, 0],
+    ];
 
     let strides = [nj * nk, nk, 1];
 
@@ -320,7 +348,10 @@ pub fn marching_tetrahedra_with_data_emit<F, D>(u: &[f64], data: &[D], dim: (usi
                 let s = (i - 1) * nj * nk + (j - 1) * nk + (k - 1);
                 let ps = [(i - 1) as f64, (j - 1) as f64, (k - 1) as f64];
 
-                let n_above = vert_offsets.iter().filter(|&offset| u[s + offset] >= level).count();
+                let n_above = vert_offsets
+                    .iter()
+                    .filter(|&offset| u[s + offset] >= level)
+                    .count();
 
                 if n_above == 0 || n_above == 8 {
                     continue;
@@ -349,22 +380,33 @@ pub fn marching_tetrahedra_with_data_emit<F, D>(u: &[f64], data: &[D], dim: (usi
                     verts.clear();
                     interp_data.clear();
                     faces.clear();
-                    tetrahedron(us,
-                                vs,
-                                |(v, d)| {
-                                    verts.push(v);
-                                    interp_data.push(d);
-                                },
-                                |f| {
-                                    faces.push(f);
-                                });
+                    tetrahedron(
+                        us,
+                        vs,
+                        |(v, d)| {
+                            verts.push(v);
+                            interp_data.push(d);
+                        },
+                        |f| {
+                            faces.push(f);
+                        },
+                    );
                     for f in &faces {
-                        emit([verts[f[0] as usize], verts[f[1] as usize], verts[f[2] as usize]],
-                             [interp_data[f[0] as usize], interp_data[f[1] as usize], interp_data[f[2] as usize]]);
+                        emit(
+                            [
+                                verts[f[0] as usize],
+                                verts[f[1] as usize],
+                                verts[f[2] as usize],
+                            ],
+                            [
+                                interp_data[f[0] as usize],
+                                interp_data[f[1] as usize],
+                                interp_data[f[2] as usize],
+                            ],
+                        );
                     }
                 }
             }
         }
     }
 }
-

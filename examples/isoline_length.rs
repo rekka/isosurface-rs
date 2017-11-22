@@ -26,10 +26,15 @@ fn main() {
 
     let level = 0.3;
     let mut length = 0.;
-    marching_triangles_with_data_emit(u.as_slice().unwrap(), data.as_slice().unwrap(), dim, level,
-    |c, _| {
-        length += (c[0][0] - c[1][0]).hypot(c[0][1] - c[1][1]);
-    });
+    marching_triangles_with_data_emit(
+        u.as_slice().unwrap(),
+        data.as_slice().unwrap(),
+        dim,
+        level,
+        |c, _| {
+            length += (c[0][0] - c[1][0]).hypot(c[0][1] - c[1][1]);
+        },
+    );
 
     println!("Isoline length = {}", length / (n - 1) as f64);
     println!("Expected length = {}", 2. * std::f64::consts::PI * level);

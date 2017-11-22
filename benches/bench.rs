@@ -1,8 +1,8 @@
 #![feature(test)]
 
-extern crate test;
 extern crate isosurface;
 extern crate ndarray;
+extern crate test;
 
 use ndarray::Array;
 use isosurface::marching_tetrahedra;
@@ -34,5 +34,4 @@ fn marching_tetrahedra32(b: &mut Bencher) {
     b.iter(|| {
         marching_tetrahedra(u.as_slice().unwrap(), dim, level);
     });
-
 }

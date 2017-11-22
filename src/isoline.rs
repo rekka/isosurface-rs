@@ -83,7 +83,6 @@ pub fn marching_triangles(u: &[f64], dim: (usize, usize), level: f64) -> Isoline
                     c += 1;
                 }
             }
-
         }
 
         table
@@ -115,16 +114,14 @@ pub fn marching_triangles(u: &[f64], dim: (usize, usize), level: f64) -> Isoline
     }
 
     // each line is a side of two triangles, this is a mapping between them
-    let dual = |(s, ei)| {
-        match ei {
-            0 => (s - si, 5),
-            1 => (s + sj, 4),
-            2 => (s, 3),
-            3 => (s, 2),
-            4 => (s - sj, 1),
-            5 => (s + si, 0),
-            _ => unreachable!(),
-        }
+    let dual = |(s, ei)| match ei {
+        0 => (s - si, 5),
+        1 => (s + sj, 4),
+        2 => (s, 3),
+        3 => (s, 2),
+        4 => (s - sj, 1),
+        5 => (s + si, 0),
+        _ => unreachable!(),
     };
 
     // finds the intersection between the isoline and an edge
@@ -185,8 +182,14 @@ pub fn marching_triangles(u: &[f64], dim: (usize, usize), level: f64) -> Isoline
 
 /// Emits indices of edges of the triangular mesh connect by the `level` level set curve of
 /// function given by values `u` at the nodes.
-pub fn marching_triangles_emit_connected_edges<F>(u: &[f64], dim: (usize, usize), level:
-        f64, mut emit: F) where F: FnMut((usize, usize), (usize, usize)) {
+pub fn marching_triangles_emit_connected_edges<F>(
+    u: &[f64],
+    dim: (usize, usize),
+    level: f64,
+    mut emit: F,
+) where
+    F: FnMut((usize, usize), (usize, usize)),
+{
     let (ni, nj) = dim;
     assert_eq!(ni * nj, u.len());
 
@@ -213,7 +216,6 @@ pub fn marching_triangles_emit_connected_edges<F>(u: &[f64], dim: (usize, usize)
                     c += 1;
                 }
             }
-
         }
 
         table
@@ -251,8 +253,16 @@ pub fn marching_triangles_emit_connected_edges<F>(u: &[f64], dim: (usize, usize)
 ///
 /// The coordinate system is chosen so that the node (i, j) with index i * dim.1 + j has coordinate
 /// (i, j).
-pub fn marching_triangles_with_data_emit<F, D>(u: &[f64], data: &[D], dim: (usize, usize), level:
-        f64, mut emit: F) where F: FnMut([[f64; 2]; 2], [D; 2]), D: Interpolate<f64> {
+pub fn marching_triangles_with_data_emit<F, D>(
+    u: &[f64],
+    data: &[D],
+    dim: (usize, usize),
+    level: f64,
+    mut emit: F,
+) where
+    F: FnMut([[f64; 2]; 2], [D; 2]),
+    D: Interpolate<f64>,
+{
     let (ni, nj) = dim;
     assert_eq!(ni * nj, u.len());
     assert_eq!(ni * nj, data.len());
@@ -274,7 +284,10 @@ pub fn marching_triangles_with_data_emit<F, D>(u: &[f64], data: &[D], dim: (usiz
 
         let x = u[s1] - level;
         let y = u[s2] - level;
-        (coord(s1).interpolate(&coord(s2), x, y), data[s1].interpolate(&data[s2], x, y))
+        (
+            coord(s1).interpolate(&coord(s2), x, y),
+            data[s1].interpolate(&data[s2], x, y),
+        )
     };
 
     marching_triangles_emit_connected_edges(u, dim, level, |a, b| {
@@ -283,4 +296,3 @@ pub fn marching_triangles_with_data_emit<F, D>(u: &[f64], data: &[D], dim: (usiz
         emit([c0, c1], [d0, d1]);
     });
 }
-
