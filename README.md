@@ -2,4 +2,12 @@
 
 Implementations of various isosurface algorithms.
 
-See `examples/` for sample code.
+## Examples
+
+See `examples/`.
+
+## C API
+
+C API is available in
+[`isosurface-capi`](https://github.com/rekka/isosurface-rs/tree/master/isosurface-capi)
+directory. See `isosurface-capi/README.md` for more information.
