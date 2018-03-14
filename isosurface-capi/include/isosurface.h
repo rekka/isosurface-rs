@@ -1,7 +1,6 @@
 #ifndef _ISOSURFACE_H
 #define _ISOSURFACE_H
 
-#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 

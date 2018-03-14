@@ -1,6 +1,6 @@
 # C API for the isosurface crate
 
-The API is documented in the header file `includes/isosurface.h`.
+The API is documented in the header file `include/isosurface.h`.
 
 ## Example
 
