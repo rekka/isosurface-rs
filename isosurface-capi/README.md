@@ -20,6 +20,9 @@ $ LD_LIBRARY_PATH=../../target/release ./simple
 This uses `isosurface` as a shared (dynamic) library, located at
 `../../target/release/libisosurface.{so,dylib}`.
 
+For an example how to use it as a static library, see
+[examples/compile](https://github.com/rekka/isosurface-rs/blob/master/isosurface-capi/examples/compile).
+
 ## Acknowledgments
 
 I used the great

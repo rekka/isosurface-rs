@@ -2,7 +2,10 @@
 
 set -ex
 
-cargo build --release --manifest-path ../Cargo.toml
+cargo rustc --release --manifest-path ../Cargo.toml -- --print native-static-libs
 gcc -O3 -DDEBUG -o simple simple.c -ansi -Wall -I../include -L../../target/release -lisosurface
-# If you're using libisosurface.a, then you'll need to link other stuff:
-# -lutil -ldl -lpthread -lgcc_s -lc -lm -lrt -lutil -lrure
+# If you're using libisosurface.a as a static library, use:
+# Linux (gcc)
+# gcc -O3 -DDEBUG -o simple simple.c -ansi -Wall -I../include ../../target/release/libisosurface.a -lutil -lutil -ldl -lrt -lpthread -lgcc_s -lc -lm -lrt -lpthread -lutil -lutil 
+# macOS (clang)
+# gcc -O3 -DDEBUG -o simple simple.c -ansi -Wall -I../include ../../target/release/libisosurface.a -lSystem -lresolv -lc -lm
