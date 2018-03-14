@@ -1,0 +1,15 @@
+[package]
+name = "isosurface_capi"
+version = "0.0.1"
+authors = ["Norbert Pozar"]
+license = "MIT"
+readme = "README.md"
+workspace = ".."
+
+[lib]
+name = "isosurface"
+crate-type = ["staticlib", "cdylib"]
+
+[dependencies]
+libc = "0.2"
+isosurface = { version = "*", path = ".." }

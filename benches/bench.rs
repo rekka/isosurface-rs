@@ -8,7 +8,6 @@ use ndarray::Array;
 use isosurface::marching_tetrahedra;
 use test::Bencher;
 
-
 #[bench]
 fn marching_tetrahedra32(b: &mut Bencher) {
     let res = 32;
