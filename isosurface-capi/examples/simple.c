@@ -16,8 +16,10 @@ int main() {
     double (*normals)[3] = iso_normals(iso);
     uint32_t (*faces)[3] = iso_faces(iso);
 
+    int i;
+
     printf("verts:\n");
-    for (int i = 0; i < n_verts; ++i) {
+    for (i = 0; i < n_verts; ++i) {
         printf("[%f, %f, %f], ", verts[i][0], verts[i][1], verts[i][2]);
     }
     printf("\n");
