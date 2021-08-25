@@ -26,7 +26,7 @@ fn main() {
     let mut fg = Figure::new();
 
     {
-        let mut axes = fg.axes2d();
+        let axes = fg.axes2d();
         axes.set_aspect_ratio(gnuplot::AutoOption::Fix(1.));
 
         let grid_opt = [gnuplot::PlotOption::LineStyle(gnuplot::DashType::DotDash)];

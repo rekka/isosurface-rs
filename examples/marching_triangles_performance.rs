@@ -23,9 +23,11 @@ fn main() {
 
     let mut m = 0;
     for _ in 0..1000 {
-        let verts = marching_triangles(u.as_slice().unwrap(), dim, 0.);
-        m += verts.len();
+        let isoline = marching_triangles(u.as_slice().unwrap(), dim, 0.);
+        for c in isoline.components() {
+            m += c.len();
+        }
     }
 
-    println!("total vert num = {}", m);
+    println!("total t num = {}", m);
 }
