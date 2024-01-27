@@ -14,35 +14,26 @@ macro_rules! impl_interpolate {
                 (1. - x) * *self + x * *other
             }
         }
-
-        impl Interpolate<$t> for [$t; 2] {
-            #[inline]
-            fn interpolate(&self, other: &Self, a: $t, b: $t) -> Self {
-                let x = a / (a - b);
-                let v = self;
-                let w = other;
-                [(1. - x) * v[0] + x * w[0], (1. - x) * v[1] + x * w[1]]
-            }
-        }
-
-        impl Interpolate<$t> for [$t; 3] {
-            #[inline]
-            fn interpolate(&self, other: &Self, a: $t, b: $t) -> Self {
-                let x = a / (a - b);
-                let v = self;
-                let w = other;
-                [
-                    (1. - x) * v[0] + x * w[0],
-                    (1. - x) * v[1] + x * w[1],
-                    (1. - x) * v[2] + x * w[2],
-                ]
-            }
-        }
     };
 }
 
 impl_interpolate!(f32);
 impl_interpolate!(f64);
+
+impl<const N: usize, T: Copy, U: Interpolate<T>> Interpolate<T> for [U; N]
+where
+    [U; N]: Default,
+{
+    fn interpolate(&self, other: &Self, a: T, b: T) -> Self {
+        let mut r: [U; N] = Default::default();
+
+        for ((x, y), r) in self.iter().zip(other).zip(&mut r) {
+            *r = x.interpolate(y, a, b);
+        }
+
+        r
+    }
+}
 
 impl<T> Interpolate<T> for () {
     fn interpolate(&self, _other: &Self, _a: T, _b: T) -> Self {

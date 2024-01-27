@@ -170,11 +170,21 @@ where
 /// `dim` is the dimension of the array `u` assumed to be in _row-major order_ (C order).
 ///
 /// Returns vertices, faces and normals of the generated triangular mesh.
-pub fn marching_tetrahedra(
-    u: &[f64],
+pub fn marching_tetrahedra<D>(
+    u: &[D],
     dim: (usize, usize, usize),
-    level: f64,
-) -> (Vec<[f64; 3]>, Vec<[u32; 3]>, Vec<[f64; 3]>) {
+    level: D,
+) -> (Vec<[D; 3]>, Vec<[u32; 3]>, Vec<[D; 3]>)
+where
+    D: Interpolate<D>
+        + From<f32>
+        + PartialOrd
+        + std::ops::Sub<D, Output = D>
+        + Copy
+        + Default
+        + Nudge
+        + std::ops::Add<D, Output = D>,
+{
     let (verts, faces, normals, _) =
         marching_tetrahedra_with_data(u, dim, level, &vec![(); u.len()]);
 
@@ -182,21 +192,29 @@ pub fn marching_tetrahedra(
 }
 
 /// As `marching_tetrahedra`, but also linearly interpolates the provided data for each vertex.
-pub fn marching_tetrahedra_with_data<T>(
-    u: &[f64],
+pub fn marching_tetrahedra_with_data<D, T>(
+    u: &[D],
     dim: (usize, usize, usize),
-    level: f64,
+    level: D,
     data: &[T],
-) -> (Vec<[f64; 3]>, Vec<[u32; 3]>, Vec<[f64; 3]>, Vec<T>)
+) -> (Vec<[D; 3]>, Vec<[u32; 3]>, Vec<[D; 3]>, Vec<T>)
 where
-    T: Interpolate<f64> + Default + Copy,
+    D: Interpolate<D>
+        + From<f32>
+        + PartialOrd
+        + std::ops::Sub<D, Output = D>
+        + Copy
+        + Default
+        + Nudge
+        + std::ops::Add<D, Output = D>,
+    T: Interpolate<D> + Default + Copy,
 {
     let (ni, nj, nk) = dim;
     assert_eq!(ni * nj * nk, u.len());
     assert_eq!(ni * nj * nk, data.len());
 
-    let mut verts: Vec<[f64; 3]> = Vec::new();
-    let mut normals: Vec<[f64; 3]> = Vec::new();
+    let mut verts: Vec<[D; 3]> = Vec::new();
+    let mut normals: Vec<[D; 3]> = Vec::new();
     let mut faces: Vec<[u32; 3]> = Vec::new();
     let mut interp_data: Vec<T> = Vec::new();
 
@@ -244,7 +262,11 @@ where
                 // split each cube into 6 tetrahedra, emit triangles
                 // vertex position
                 let s = (i - 1) * nj * nk + (j - 1) * nk + (k - 1);
-                let ps = [(i - 1) as f64, (j - 1) as f64, (k - 1) as f64];
+                let ps = [
+                    D::from((i - 1) as f32),
+                    D::from((j - 1) as f32),
+                    D::from((k - 1) as f32),
+                ];
 
                 let n_above = vert_offsets
                     .iter()
@@ -259,8 +281,8 @@ where
                     // find tetrahedron data by walking along the edges of a cube
                     // in the order given by the permutation
                     let (us, vs) = {
-                        let mut us = [0.; 4];
-                        let mut vs = [([0.; 3], T::default()); 4];
+                        let mut us = [D::from(0.); 4];
+                        let mut vs = [([D::from(0.); 3], T::default()); 4];
                         let mut vi = s;
                         let mut vp = ps;
                         us[0] = u[vi] - level;
@@ -268,7 +290,7 @@ where
                         for m in 0..3 {
                             let t = perm[m];
                             vi += strides[t];
-                            vp[t] += 1.;
+                            vp[t] = vp[t] + D::from(1.);
                             us[m + 1] = u[vi] - level;
                             vs[m + 1] = (vp, data[vi]);
                         }
