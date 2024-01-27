@@ -2,9 +2,9 @@ extern crate gnuplot;
 extern crate isosurface;
 extern crate ndarray;
 
-use ndarray::Array;
-use isosurface::marching_triangles;
 use gnuplot::{AxesCommon, Figure};
+use isosurface::marching_triangles;
+use ndarray::Array;
 
 fn main() {
     let n = 6;

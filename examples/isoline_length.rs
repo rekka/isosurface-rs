@@ -1,8 +1,8 @@
 extern crate isosurface;
 extern crate ndarray;
 
-use ndarray::Array;
 use isosurface::marching_triangles_with_data_emit;
+use ndarray::Array;
 
 fn main() {
     let n = 16;

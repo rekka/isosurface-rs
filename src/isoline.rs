@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use interpolate::Interpolate;
+use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 pub struct Isoline {

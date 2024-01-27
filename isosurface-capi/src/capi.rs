@@ -1,7 +1,7 @@
-use std::slice;
-use std::ptr;
 use isosurface;
 use libc::size_t;
+use std::ptr;
+use std::slice;
 
 pub struct Isosurface {
     verts: Vec<[f64; 3]>,
@@ -10,7 +10,7 @@ pub struct Isosurface {
     data: Option<Vec<f64>>,
 }
 
-ffi_fn!{
+ffi_fn! {
     fn marching_tetrahedra(u: *const f64, ni: size_t, nj: size_t, nk: size_t, level: f64)
         -> *const Isosurface {
         let u = unsafe { slice::from_raw_parts(u, ni * nj * nk) };
@@ -25,7 +25,7 @@ ffi_fn!{
     }
 }
 
-ffi_fn!{
+ffi_fn! {
     fn iso_num_verts(iso: *const Isosurface) -> size_t {
         let iso = unsafe { &*iso };
 
@@ -33,7 +33,7 @@ ffi_fn!{
     }
 }
 
-ffi_fn!{
+ffi_fn! {
     fn iso_num_faces(iso: *const Isosurface) -> size_t {
         let iso = unsafe { &*iso };
 
@@ -41,7 +41,7 @@ ffi_fn!{
     }
 }
 
-ffi_fn!{
+ffi_fn! {
     fn iso_verts(iso: *const Isosurface) -> *const [f64; 3] {
         let iso = unsafe { &*iso };
 
@@ -49,7 +49,7 @@ ffi_fn!{
     }
 }
 
-ffi_fn!{
+ffi_fn! {
     fn iso_normals(iso: *const Isosurface) -> *const [f64; 3] {
         let iso = unsafe { &*iso };
 
@@ -57,7 +57,7 @@ ffi_fn!{
     }
 }
 
-ffi_fn!{
+ffi_fn! {
     fn iso_faces(iso: *const Isosurface) -> *const [u32; 3] {
         let iso = unsafe { &*iso };
 
@@ -65,7 +65,7 @@ ffi_fn!{
     }
 }
 
-ffi_fn!{
+ffi_fn! {
     fn iso_data(iso: *const Isosurface) -> *const f64 {
         let iso = unsafe { &*iso };
 

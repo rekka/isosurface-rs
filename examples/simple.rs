@@ -1,8 +1,8 @@
 extern crate isosurface;
 extern crate ndarray;
 
-use ndarray::Array;
 use isosurface::marching_tetrahedra;
+use ndarray::Array;
 
 fn main() {
     let xs = Array::linspace(-0.5, 0.5, 3);

@@ -4,8 +4,8 @@ extern crate isosurface;
 extern crate ndarray;
 extern crate test;
 
-use ndarray::Array;
 use isosurface::marching_tetrahedra;
+use ndarray::Array;
 use test::Bencher;
 
 #[bench]

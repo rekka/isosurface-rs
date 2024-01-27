@@ -2,9 +2,9 @@ def recur(idx):
     n = len(idx)
     indent = ' ' * (4 * n)
     if len(idx) < 4:
-        print(indent + f'if u{n} >= 0. {{')
+        print(indent + f'if u{n} >= zero {{')
         if len(idx) < 3:
-            print(indent + f'    let u{n} = u{n} + tiny;')
+            print(indent + f'    let u{n} = u{n}.nudge();')
         idx.append(0)
         recur(idx)
         idx.pop()
