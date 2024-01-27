@@ -228,17 +228,6 @@ where
         [2, 1, 0],
     ];
 
-    // inverse permutation (index where the element goes)
-    let inv_perms = {
-        let mut inv_perms = [[0; 3]; 6];
-        for i in 0..6 {
-            for j in 0..3 {
-                inv_perms[i][perms[i][j]] = j;
-            }
-        }
-        inv_perms
-    };
-
     let strides = [nj * nk, nk, 1];
 
     let vert_offsets = {
@@ -277,7 +266,7 @@ where
                     continue;
                 }
 
-                for (perm, inv_perm) in perms.iter().zip(inv_perms.iter()) {
+                for perm in perms {
                     // find tetrahedron data by walking along the edges of a cube
                     // in the order given by the permutation
                     let (us, vs) = {
@@ -311,8 +300,11 @@ where
                     );
 
                     // normals
-                    let n = [us[1] - us[0], us[2] - us[1], us[3] - us[2]];
-                    let n = [n[inv_perm[0]], n[inv_perm[1]], n[inv_perm[2]]];
+                    let mut n = [D::from(0.); 3];
+                    for i in 0..3 {
+                        // invert the permutation
+                        n[perm[i]] = us[i + 1] - us[i];
+                    }
 
                     for _ in 0..verts.len() - normals.len() {
                         normals.push(n);
