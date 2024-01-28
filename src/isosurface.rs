@@ -1,4 +1,4 @@
-use interpolate::Interpolate;
+use crate::interpolate::Interpolate;
 
 pub trait Nudge {
     fn nudge(self) -> Self;
@@ -438,5 +438,104 @@ pub fn marching_tetrahedra_with_data_emit<F, D>(
                 }
             }
         }
+    }
+}
+
+/// Marching tetrahedra on a axes aligned cube; linearly interpolates the provided data for each
+/// vertex.
+///
+/// `corner` is the position of the cube corner with smallest coordinates, so that other corners
+/// can be produces by adding `size`.
+///
+/// The ordering of `u` and `data` is so that 
+///
+/// - `u[i]` and `u[i + 4]` are at corners differing in _x_ (first) coordinate,
+/// - `u[i]` and `u[i + 2]` differ by the _y_ (middle) coordinate,
+/// - `u[i]` and `u[i + 1]` differ by the _z_ (last) coordinate.
+///
+/// `emit_vertex` emits the vertex coord, normal and interpolated data.
+///
+/// `emit_face` emits the 3 indices of the face vertices.
+/// The emitted face indices are relative to `vertext_index_offset`.
+pub fn marching_tetrahedra_with_data_cube<D, T>(
+    corner: [D; 3],
+    size: D,
+    u: [D; 8],
+    level: D,
+    data: [T; 8],
+    mut vertext_index_offset: u32,
+    mut emit_vertex: impl FnMut([D; 3], [D; 3], T),
+    mut emit_face: impl FnMut([u32; 3]),
+) where
+    D: Interpolate<D>
+        + From<f32>
+        + PartialOrd
+        + std::ops::Sub<D, Output = D>
+        + Copy
+        + Default
+        + Nudge
+        + std::ops::Add<D, Output = D>,
+    T: Interpolate<D> + Default + Copy,
+{
+    // permutations of [0, 1, 2]
+    let perms = [
+        [0, 1, 2],
+        [0, 2, 1],
+        [1, 0, 2],
+        [1, 2, 0],
+        [2, 0, 1],
+        [2, 1, 0],
+    ];
+
+    // return early if the cube does not intersect the level set
+    let n_above = u
+        .into_iter()
+        .filter(|&u| u >= level)
+        .count();
+
+    if n_above == 0 || n_above == 8 {
+        return;
+    }
+
+    for perm in perms {
+        // find tetrahedron data by walking along the edges of a cube
+        // in the order given by the permutation
+        let (us, vs) = {
+            let mut us = [D::from(0.); 4];
+            let mut vs = [([D::from(0.); 3], T::default()); 4];
+            let mut vi = 0;
+            let mut vp = corner;
+            us[0] = u[vi] - level;
+            vs[0] = (vp, data[vi]);
+            for m in 0..3 {
+                let t = perm[m];
+                vi += 1 << (2 - t);
+                vp[t] = vp[t] + size;
+                us[m + 1] = u[vi] - level;
+                vs[m + 1] = (vp, data[vi]);
+            }
+            (us, vs)
+        };
+
+        // normal
+        let mut n = [D::from(0.); 3];
+        for i in 0..3 {
+            // invert the permutation
+            n[perm[i]] = us[i + 1] - us[i];
+        }
+
+        let cur = vertext_index_offset;
+        tetrahedron(
+            us,
+            vs,
+            |(v, d)| {
+                emit_vertex(v, n, d);
+                vertext_index_offset += 1;
+            },
+            |f| {
+                emit_face([f[0] + cur, f[1] + cur, f[2] + cur]);
+            },
+        );
+
     }
 }

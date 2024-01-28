@@ -3,6 +3,7 @@ authors = ["Norbert Pozar <bertapozar@gmail.com>"]
 license = "MIT"
 name = "isosurface"
 version = "0.1.0"
+edition = "2021"
 
 [dependencies]
 

@@ -1,4 +1,4 @@
-use interpolate::Interpolate;
+use crate::interpolate::Interpolate;
 use std::collections::HashMap;
 
 #[derive(Clone, Debug)]

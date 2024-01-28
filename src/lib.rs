@@ -16,6 +16,7 @@ mod isosurface;
 pub use isosurface::marching_tetrahedra;
 pub use isosurface::marching_tetrahedra_with_data;
 pub use isosurface::marching_tetrahedra_with_data_emit;
+pub use isosurface::marching_tetrahedra_with_data_cube;
 pub use isosurface::tetrahedron;
 
 mod interpolate;
